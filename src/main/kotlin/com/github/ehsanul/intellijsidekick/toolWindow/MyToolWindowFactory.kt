@@ -1,4 +1,4 @@
-package com.github.ehsanul.intellijsidekick.toolWindow
+package com.github.sidedev.intellijsidekick.toolWindow
 
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
@@ -8,8 +8,8 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
-import com.github.ehsanul.intellijsidekick.MyBundle
-import com.github.ehsanul.intellijsidekick.services.MyProjectService
+import com.github.sidedev.intellijsidekick.MyBundle
+import com.github.sidedev.intellijsidekick.services.MyProjectService
 import javax.swing.JButton
 
 

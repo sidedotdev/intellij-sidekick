@@ -1,4 +1,4 @@
-package com.github.ehsanul.intellijsidekick.listeners
+package com.github.sidedev.intellijsidekick.listeners
 
 import com.intellij.openapi.application.ApplicationActivationListener
 import com.intellij.openapi.diagnostic.thisLogger

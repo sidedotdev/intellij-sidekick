@@ -1,9 +1,9 @@
-package com.github.ehsanul.intellijsidekick.services
+package com.github.sidedev.intellijsidekick.services
 
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
-import com.github.ehsanul.intellijsidekick.MyBundle
+import com.github.sidedev.intellijsidekick.MyBundle
 
 @Service(Service.Level.PROJECT)
 class MyProjectService(project: Project) {
