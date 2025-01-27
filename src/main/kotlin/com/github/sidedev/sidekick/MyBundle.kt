@@ -1,4 +1,4 @@
-package com.github.sidedev.intellijsidekick
+package com.github.sidedev.sidekick
 
 import com.intellij.DynamicBundle
 import org.jetbrains.annotations.NonNls
