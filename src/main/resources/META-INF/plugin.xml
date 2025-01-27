@@ -10,6 +10,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow factoryClass="com.github.sidedev.sidekick.toolWindow.MyToolWindowFactory" id="MyToolWindow" anchor="right"/>
+        <toolWindow factoryClass="com.github.sidedev.sidekick.toolWindow.SidekickToolWindowFactory" id="Sidekick" anchor="right"/>
     </extensions>
 
     <applicationListeners>
