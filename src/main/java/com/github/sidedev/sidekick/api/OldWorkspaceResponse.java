@@ -3,7 +3,7 @@ package com.github.sidedev.sidekick.api;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
-public class WorkspaceResponse {
+public class OldWorkspaceResponse {
     @JsonProperty("workspaces")
     private List<Workspace> workspaces;
 

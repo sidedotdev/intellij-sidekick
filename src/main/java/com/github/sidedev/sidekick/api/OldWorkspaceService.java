@@ -9,19 +9,19 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
 
-public class WorkspaceService {
+public class OldWorkspaceService {
     private static final String API_BASE_URL = "http://localhost:8855/api/v1";
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    public WorkspaceService() {
+    public OldWorkspaceService() {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
         this.objectMapper = new ObjectMapper();
     }
 
-    public Optional<WorkspaceResponse> getWorkspaces() {
+    public Optional<OldWorkspaceResponse> getWorkspaces() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_BASE_URL + "/workspaces/"))
                 .GET()
@@ -30,7 +30,7 @@ public class WorkspaceService {
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                return Optional.of(objectMapper.readValue(response.body(), WorkspaceResponse.class));
+                return Optional.of(objectMapper.readValue(response.body(), OldWorkspaceResponse.class));
             }
             return Optional.empty();
         } catch (IOException | InterruptedException e) {

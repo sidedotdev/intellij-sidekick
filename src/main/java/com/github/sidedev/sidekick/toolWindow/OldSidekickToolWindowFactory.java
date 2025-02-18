@@ -1,8 +1,8 @@
 package com.github.sidedev.sidekick.toolWindow;
 
 import com.github.sidedev.sidekick.MyBundle;
-import com.github.sidedev.sidekick.api.WorkspaceService;
-import com.github.sidedev.sidekick.api.WorkspaceResponse;
+import com.github.sidedev.sidekick.api.OldWorkspaceService;
+import com.github.sidedev.sidekick.api.OldWorkspaceResponse;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
@@ -15,7 +15,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.Optional;
 
-public class SidekickToolWindowFactory implements ToolWindowFactory {
+public class OldSidekickToolWindowFactory implements ToolWindowFactory {
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
@@ -33,12 +33,12 @@ public class SidekickToolWindowFactory implements ToolWindowFactory {
     private static class SidekickToolWindow {
         private final ToolWindow toolWindow;
         private final Project project;
-        private final WorkspaceService workspaceService;
+        private final OldWorkspaceService workspaceService;
         
         public SidekickToolWindow(ToolWindow toolWindow, Project project) {
             this.toolWindow = toolWindow;
             this.project = project;
-            this.workspaceService = new WorkspaceService();
+            this.workspaceService = new OldWorkspaceService();
         }
 
         public JBPanel<JBPanel<?>> getContent() {
@@ -61,14 +61,14 @@ public class SidekickToolWindowFactory implements ToolWindowFactory {
         }
 
         private String determineWorkspaceStatus() {
-            Optional<WorkspaceResponse> response = workspaceService.getWorkspaces();
+            Optional<OldWorkspaceResponse> response = workspaceService.getWorkspaces();
             if (response.isEmpty()) {
                 return "Side is not running. Please run `side start`";
             }
 
             String projectPath = project.getBasePath();
             if (projectPath != null) {
-                for (WorkspaceResponse.Workspace workspace : response.get().getWorkspaces()) {
+                for (OldWorkspaceResponse.Workspace workspace : response.get().getWorkspaces()) {
                     if (projectPath.equals(workspace.getLocalRepoDir())) {
                         return "Found workspace " + workspace.getId();
                     }
