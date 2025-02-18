@@ -1,6 +1,7 @@
 package com.github.sidedev.sidekick.api
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.PropertyNamingStrategies.LOWER_CAMEL_CASE
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -11,8 +12,11 @@ class WorkspaceService {
     private val client = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(5))
         .build()
-    private val objectMapper = ObjectMapper()
-    
+    private val objectMapper = ObjectMapper().apply {
+        findAndRegisterModules()
+        propertyNamingStrategy = LOWER_CAMEL_CASE
+    }
+
     fun getWorkspaces(): WorkspaceResponse? {
         return try {
             val request = HttpRequest.newBuilder()
