@@ -9,7 +9,9 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import org.jetbrains.annotations.NotNull
 import javax.swing.JLabel
@@ -33,15 +35,25 @@ class SidekickToolWindowFactory : ToolWindowFactory {
     ) {
         private val sidekickService = SidekickService()
         
+        private val taskListModel = TaskListModel()
+        
         fun getContent(): JBPanel<JBPanel<*>> {
             val mainPanel = JBPanel<JBPanel<*>>().apply {
                 layout = BorderLayout()
             }
             
+            // Status label at the top
             val statusLabel = JLabel(MyBundle.message("statusLabel", "?")).apply {
                 horizontalAlignment = SwingConstants.CENTER
             }
-            mainPanel.add(statusLabel, BorderLayout.CENTER)
+            mainPanel.add(statusLabel, BorderLayout.NORTH)
+            
+            // Task list in a scroll pane in the center
+            val taskList = JBList(taskListModel).apply {
+                cellRenderer = TaskCellRenderer()
+            }
+            mainPanel.add(JBScrollPane(taskList), BorderLayout.CENTER)
+            
             statusLabel.text = "Loading..."
 
             // Check workspace status
