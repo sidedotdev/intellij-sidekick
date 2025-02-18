@@ -1,7 +1,8 @@
 package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.MyBundle
-import com.github.sidedev.sidekick.api.WorkspaceService
+import com.github.sidedev.sidekick.api.response.ErrorResponse
+import com.github.sidedev.sidekick.api.SidekickService
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
@@ -28,7 +29,7 @@ class SidekickToolWindowFactory : ToolWindowFactory {
         private val toolWindow: ToolWindow,
         private val project: Project
     ) {
-        private val workspaceService = WorkspaceService()
+        private val sidekickService = SidekickService()
         
         fun getContent(): JBPanel<JBPanel<*>> {
             val mainPanel = JBPanel<JBPanel<*>>().apply {
@@ -52,12 +53,15 @@ class SidekickToolWindowFactory : ToolWindowFactory {
         }
 
         private fun determineWorkspaceStatus(): String {
-            val response = workspaceService.getWorkspaces() 
-                ?: return "Side is not running. Please run `side start`"
+            val response = sidekickService.getWorkspaces()
+            if (response.isError()) {
+                return "Side is not running. Please run `side start`. Error: " + response.getErrorIfAny()
+            }
+            val workspaces = response.getDataOrThrow().workspaces
 
             val projectPath = project.basePath
             if (projectPath != null) {
-                for (workspace in response.workspaces) {
+                for (workspace in workspaces) {
                     if (projectPath == workspace.localRepoDir) {
                         return "Found workspace ${workspace.id}"
                     }
