@@ -1,5 +1,13 @@
 package com.github.sidedev.sidekick.api
 
-data class TaskResponse(
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class TasksResponse(
     val tasks: List<Task>
+)
+
+@Serializable
+data class TaskResponse(
+    val task: Task
 )

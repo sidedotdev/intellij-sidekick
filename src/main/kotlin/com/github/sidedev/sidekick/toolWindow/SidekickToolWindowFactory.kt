@@ -1,8 +1,10 @@
 package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.MyBundle
-import com.github.sidedev.sidekick.api.response.ErrorResponse
+import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.SidekickService
+import com.github.sidedev.sidekick.api.Workspace
+import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
@@ -40,35 +42,39 @@ class SidekickToolWindowFactory : ToolWindowFactory {
                 horizontalAlignment = SwingConstants.CENTER
             }
             mainPanel.add(statusLabel, BorderLayout.CENTER)
-            
+            statusLabel.text = "Loading..."
+
             // Check workspace status
             ApplicationManager.getApplication().executeOnPooledThread {
-                val message = determineWorkspaceStatus()
-                ApplicationManager.getApplication().invokeLater {
-                    statusLabel.text = MyBundle.message("statusLabel", message)
+                kotlinx.coroutines.runBlocking {
+                    val message = determineWorkspaceStatus()
+                    ApplicationManager.getApplication().invokeLater {
+                        statusLabel.text = MyBundle.message("statusLabel", message)
+                    }
                 }
             }
             
             return mainPanel
         }
 
-        private fun determineWorkspaceStatus(): String {
-            val response = sidekickService.getWorkspaces()
-            if (response.isError()) {
-                return "Side is not running. Please run `side start`. Error: " + response.getErrorIfAny()
-            }
-            val workspaces = response.getDataOrThrow().workspaces
-
-            val projectPath = project.basePath
-            if (projectPath != null) {
-                for (workspace in workspaces) {
-                    if (projectPath == workspace.localRepoDir) {
-                        return "Found workspace ${workspace.id}"
+        private suspend fun determineWorkspaceStatus(): String {
+            return sidekickService.getWorkspaces().mapOrElse(
+                { workspaces: List<Workspace> ->
+                    val projectPath = project.basePath
+                    if (projectPath != null) {
+                        for (workspace in workspaces) {
+                            if (projectPath == workspace.localRepoDir) {
+                                return@mapOrElse "Found workspace ${workspace.id}"
+                            }
+                        }
                     }
+
+                    "No workspace set up yet"
+                },
+                { error: ApiError ->
+                    "Side is not running. Please run `side start`. Error: " + error.error
                 }
-            }
-            
-            return "No workspace set up yet"
+            )
         }
     }
 }
