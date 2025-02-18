@@ -3,6 +3,7 @@ package com.github.sidedev.sidekick.toolWindow
 import com.github.sidedev.sidekick.MyBundle
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.SidekickService
+import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.Workspace
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.openapi.application.ApplicationManager
@@ -13,6 +14,9 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.jetbrains.annotations.NotNull
 import javax.swing.JLabel
 import javax.swing.SwingConstants
@@ -34,8 +38,8 @@ class SidekickToolWindowFactory : ToolWindowFactory {
         private val project: Project
     ) {
         private val sidekickService = SidekickService()
-        
         private val taskListModel = TaskListModel()
+        private lateinit var statusLabel: JLabel
         
         fun getContent(): JBPanel<JBPanel<*>> {
             val mainPanel = JBPanel<JBPanel<*>>().apply {
@@ -43,7 +47,7 @@ class SidekickToolWindowFactory : ToolWindowFactory {
             }
             
             // Status label at the top
-            val statusLabel = JLabel(MyBundle.message("statusLabel", "?")).apply {
+            statusLabel = JLabel(MyBundle.message("statusLabel", "?")).apply {
                 horizontalAlignment = SwingConstants.CENTER
             }
             mainPanel.add(statusLabel, BorderLayout.NORTH)
@@ -56,37 +60,64 @@ class SidekickToolWindowFactory : ToolWindowFactory {
             
             statusLabel.text = "Loading..."
 
-            // Check workspace status
+            // Check workspace status 
             ApplicationManager.getApplication().executeOnPooledThread {
-                kotlinx.coroutines.runBlocking {
-                    val message = determineWorkspaceStatus()
-                    ApplicationManager.getApplication().invokeLater {
-                        statusLabel.text = MyBundle.message("statusLabel", message)
-                    }
+                CoroutineScope(Dispatchers.IO).launch {
+                    updateWorkspaceContent()
                 }
             }
             
             return mainPanel
         }
 
-        private suspend fun determineWorkspaceStatus(): String {
-            return sidekickService.getWorkspaces().mapOrElse(
-                { workspaces: List<Workspace> ->
+        private suspend fun updateWorkspaceContent() {
+            when (val workspacesResult = sidekickService.getWorkspaces()) {
+                is ApiResponse.Success -> {
+                    val workspaces = workspacesResult.data
                     val projectPath = project.basePath
                     if (projectPath != null) {
                         for (workspace in workspaces) {
                             if (projectPath == workspace.localRepoDir) {
-                                return@mapOrElse "Found workspace ${workspace.id}"
+                                // Handle found workspace
+                                when (val tasksResult = sidekickService.getTasks(workspace.id)) {
+                                    is ApiResponse.Success -> {
+                                        val tasks = tasksResult.data
+                                        ApplicationManager.getApplication().invokeLater {
+                                            if (tasks.isEmpty()) {
+                                                statusLabel.text = MyBundle.message("statusLabel", "No tasks found")
+                                            } else {
+                                                statusLabel.text = MyBundle.message("statusLabel", "Tasks for workspace ${workspace.id}")
+                                            }
+                                            taskListModel.updateTasks(tasks)
+                                        }
+                                    }
+                                    is ApiResponse.Error -> {
+                                        val message = "Error fetching tasks: ${tasksResult.error.error}"
+                                        ApplicationManager.getApplication().invokeLater {
+                                            statusLabel.text = MyBundle.message("statusLabel", message)
+                                            taskListModel.updateTasks(emptyList())
+                                        }
+                                    }
+                                }
+                                return
                             }
                         }
                     }
 
-                    "No workspace set up yet"
-                },
-                { error: ApiError ->
-                    "Side is not running. Please run `side start`. Error: " + error.error
+                    // No matching workspace found
+                    ApplicationManager.getApplication().invokeLater {
+                        statusLabel.text = MyBundle.message("statusLabel", "No workspace set up yet")
+                        taskListModel.updateTasks(emptyList())
+                    }
                 }
-            )
+                is ApiResponse.Error -> {
+                    val message = "Side is not running. Please run `side start`. Error: ${workspacesResult.error.error}"
+                    ApplicationManager.getApplication().invokeLater {
+                        statusLabel.text = MyBundle.message("statusLabel", message)
+                        taskListModel.updateTasks(emptyList())
+                    }
+                }
+            }
         }
     }
 }
