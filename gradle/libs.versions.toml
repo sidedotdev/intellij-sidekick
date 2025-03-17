@@ -3,6 +3,7 @@
 junit = "4.13.2"
 kotlinx = "1.8.0"
 ktor = "2.3.5"
+mockk = "1.13.8"
 
 # plugins
 changelog = "2.2.1"
@@ -18,6 +19,7 @@ ktorClientCore = { group = "io.ktor", name = "ktor-client-core", version.ref = "
 ktorClientCIO = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
 ktorClientContentNegotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
 ktorSerializationKotinxJson = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 
 [plugins]
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
