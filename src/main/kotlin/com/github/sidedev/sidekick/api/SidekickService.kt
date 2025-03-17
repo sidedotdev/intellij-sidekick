@@ -2,6 +2,7 @@ package com.github.sidedev.sidekick.api
 
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
@@ -14,7 +15,7 @@ import com.github.sidedev.sidekick.api.response.DeleteTaskResponse
 class SidekickService(
     private val baseUrl: String = "http://localhost:8855/api/v1"
 ) {
-    private val client = HttpClient {
+    private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true

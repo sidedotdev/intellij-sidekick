@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.changelog) // Gradle Changelog Plugin
     alias(libs.plugins.qodana) // Gradle Qodana Plugin
     alias(libs.plugins.kover) // Gradle Kover Plugin
-    kotlin("plugin.serialization") version "2.1.0"
+    alias(libs.plugins.serialization) // Kotlin Serialization Plugin
 }
 
 group = providers.gradleProperty("pluginGroup").get()
@@ -24,6 +24,7 @@ kotlin {
 repositories {
     mavenCentral()
 
+
     // IntelliJ Platform Gradle Plugin Repositories Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-repositories-extension.html
     intellijPlatform {
         defaultRepositories()
@@ -32,8 +33,12 @@ repositories {
 
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
-    // implementation seems to conflict, maybe with kover plugin
-    compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+    // think we don't need it as intellijPlatform includes it?
+    implementation(libs.kotlinxSerializationJson)
+    implementation(libs.ktorClientCore)
+    implementation(libs.ktorClientContentNegotiation)
+    implementation(libs.ktorSerializationKotinxJson)
+    implementation(libs.ktorClientCIO)
 
     testImplementation(libs.junit)
 
@@ -46,7 +51,6 @@ dependencies {
 
         // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file for plugin from JetBrains Marketplace.
         plugins(providers.gradleProperty("platformPlugins").map { it.split(',') })
-
         instrumentationTools()
         pluginVerifier()
         zipSigner()

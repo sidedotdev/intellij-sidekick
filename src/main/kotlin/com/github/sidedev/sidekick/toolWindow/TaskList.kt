@@ -18,7 +18,7 @@ class TaskListModel : AbstractListModel<Task>() {
 
     fun updateTasks(newTasks: List<Task>) {
         // Sort by updatedAt in descending order
-        tasks = newTasks.sortedByDescending { it.updatedAt }
+        tasks = newTasks.sortedByDescending { it.updated }
         fireContentsChanged(this, 0, tasks.size)
     }
 }

@@ -1,16 +1,23 @@
 [versions]
 # libraries
 junit = "4.13.2"
+kotlinx = "1.8.0"
+ktor = "2.3.5"
 
 # plugins
 changelog = "2.2.1"
 intelliJPlatform = "2.1.0"
-kotlin = "1.9.25"
+kotlin = "2.1.0"
 kover = "0.8.3"
 qodana = "2024.2.3"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+kotlinxSerializationJson = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx" }
+ktorClientCore = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktorClientCIO = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
+ktorClientContentNegotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktorSerializationKotinxJson = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 
 [plugins]
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }
@@ -18,3 +25,4 @@ intelliJPlatform = { id = "org.jetbrains.intellij.platform", version.ref = "inte
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 qodana = { id = "org.jetbrains.qodana", version.ref = "qodana" }
+serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

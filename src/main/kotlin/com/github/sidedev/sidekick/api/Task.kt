@@ -10,6 +10,6 @@ data class Task(
     val agentType: String,
     val flowType: String,
     val description: String,
-    val createdAt: String,
-    val updatedAt: String
+    val created: String,
+    val updated: String
 )
