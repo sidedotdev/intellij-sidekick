@@ -33,13 +33,13 @@ class SidekickToolWindowFactory : ToolWindowFactory {
 
     override fun shouldBeAvailable(project: Project) = true
 
-    private class SidekickToolWindow(
+    class SidekickToolWindow(
         private val toolWindow: ToolWindow,
-        private val project: Project
+        private val project: Project,
+        private val sidekickService: SidekickService = SidekickService()
     ) {
-        private val sidekickService = SidekickService()
         private val taskListModel = TaskListModel()
-        private lateinit var statusLabel: JLabel
+        internal lateinit var statusLabel: JLabel
         
         fun getContent(): JBPanel<JBPanel<*>> {
             val mainPanel = JBPanel<JBPanel<*>>().apply {
@@ -70,7 +70,7 @@ class SidekickToolWindowFactory : ToolWindowFactory {
             return mainPanel
         }
 
-        private suspend fun updateWorkspaceContent() {
+        internal suspend fun updateWorkspaceContent() {
             when (val workspacesResult = sidekickService.getWorkspaces()) {
                 is ApiResponse.Success -> {
                     val workspaces = workspacesResult.data
@@ -118,6 +118,10 @@ class SidekickToolWindowFactory : ToolWindowFactory {
                     }
                 }
             }
+        }
+        
+        internal fun getTaskListModel(): TaskListModel {
+            return taskListModel
         }
     }
 }
