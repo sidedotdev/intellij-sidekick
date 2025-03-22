@@ -4,6 +4,7 @@ import com.github.sidedev.sidekick.MyBundle
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -19,7 +20,7 @@ import java.awt.BorderLayout
 import javax.swing.JLabel
 import javax.swing.SwingConstants
 
-class SidekickToolWindowFactory : ToolWindowFactory {
+class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun createToolWindowContent(
         @NotNull project: Project,
         @NotNull toolWindow: ToolWindow,
