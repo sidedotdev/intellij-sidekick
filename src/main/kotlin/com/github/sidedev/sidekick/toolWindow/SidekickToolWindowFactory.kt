@@ -30,8 +30,7 @@ class SidekickToolWindowFactory : ToolWindowFactory {
     
     internal fun createSidekickToolWindow(@NotNull project: Project, @NotNull toolWindow: ToolWindow, service: SidekickService): SidekickToolWindow {
         val myToolWindow = SidekickToolWindow(toolWindow, project, service)
-        val content = ContentFactory.getInstance().createContent(
-            myToolWindow.getContent(), null, false)
+        val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), null, false)
         toolWindow.contentManager.addContent(content)
         return myToolWindow
     }
