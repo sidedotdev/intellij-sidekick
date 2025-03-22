@@ -1,10 +1,7 @@
 package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.MyBundle
-import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.SidekickService
-import com.github.sidedev.sidekick.api.Task
-import com.github.sidedev.sidekick.api.Workspace
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
@@ -18,17 +15,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.NotNull
+import java.awt.BorderLayout
 import javax.swing.JLabel
 import javax.swing.SwingConstants
-import java.awt.BorderLayout
 
 class SidekickToolWindowFactory : ToolWindowFactory {
-
-    override fun createToolWindowContent(@NotNull project: Project, @NotNull toolWindow: ToolWindow) {
+    override fun createToolWindowContent(
+        @NotNull project: Project,
+        @NotNull toolWindow: ToolWindow,
+    ) {
         createSidekickToolWindow(project, toolWindow, SidekickService())
     }
-    
-    internal fun createSidekickToolWindow(@NotNull project: Project, @NotNull toolWindow: ToolWindow, service: SidekickService): SidekickToolWindow {
+
+    internal fun createSidekickToolWindow(
+        @NotNull project: Project,
+        @NotNull toolWindow: ToolWindow,
+        service: SidekickService,
+    ): SidekickToolWindow {
         val myToolWindow = SidekickToolWindow(toolWindow, project, service)
         val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), null, false)
         toolWindow.contentManager.addContent(content)
@@ -40,37 +43,37 @@ class SidekickToolWindowFactory : ToolWindowFactory {
     class SidekickToolWindow(
         private val toolWindow: ToolWindow,
         private val project: Project,
-        private val sidekickService: SidekickService = SidekickService()
+        private val sidekickService: SidekickService = SidekickService(),
     ) {
         private val taskListModel = TaskListModel()
         internal lateinit var statusLabel: JLabel
-        
+
         fun getContent(): JBPanel<JBPanel<*>> {
             val mainPanel = JBPanel<JBPanel<*>>().apply {
                 layout = BorderLayout()
             }
-            
+
             // Status label at the top
             statusLabel = JLabel(MyBundle.message("statusLabel", "?")).apply {
                 horizontalAlignment = SwingConstants.CENTER
             }
             mainPanel.add(statusLabel, BorderLayout.NORTH)
-            
+
             // Task list in a scroll pane in the center
             val taskList = JBList(taskListModel).apply {
                 cellRenderer = TaskCellRenderer()
             }
             mainPanel.add(JBScrollPane(taskList), BorderLayout.CENTER)
-            
+
             statusLabel.text = "Loading..."
 
-            // Check workspace status 
+            // Check workspace status
             ApplicationManager.getApplication().executeOnPooledThread {
                 CoroutineScope(Dispatchers.IO).launch {
                     updateWorkspaceContent()
                 }
             }
-            
+
             return mainPanel
         }
 
@@ -123,9 +126,7 @@ class SidekickToolWindowFactory : ToolWindowFactory {
                 }
             }
         }
-        
-        internal fun getTaskListModel(): TaskListModel {
-            return taskListModel
-        }
+
+        internal fun getTaskListModel(): TaskListModel = taskListModel
     }
 }

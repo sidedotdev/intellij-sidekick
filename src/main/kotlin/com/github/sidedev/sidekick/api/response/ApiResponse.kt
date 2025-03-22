@@ -1,10 +1,16 @@
 package com.github.sidedev.sidekick.api.response
 
 sealed class ApiResponse<out T, out E> {
-    data class Success<out T>(val data: T) : ApiResponse<T, Nothing>()
-    data class Error<out E>(val error: E) : ApiResponse<Nothing, E>()
+    data class Success<out T>(
+        val data: T,
+    ) : ApiResponse<T, Nothing>()
+
+    data class Error<out E>(
+        val error: E,
+    ) : ApiResponse<Nothing, E>()
 
     fun isSuccess(): Boolean = this is Success
+
     fun isError(): Boolean = this is Error
 
     fun getErrorIfAny(): E? = when (this) {
@@ -27,10 +33,8 @@ sealed class ApiResponse<out T, out E> {
         return (this as Success)
     }
 
-    fun <U> mapOrElse(successMapper: (T) -> U, errorMapper: (E) -> U): U {
-        return when {
-            isSuccess() -> successMapper((this as Success).data)
-            else -> errorMapper((this as Error).error)
-        }
+    fun <U> mapOrElse(successMapper: (T) -> U, errorMapper: (E) -> U): U = when {
+        isSuccess() -> successMapper((this as Success).data)
+        else -> errorMapper((this as Error).error)
     }
 }

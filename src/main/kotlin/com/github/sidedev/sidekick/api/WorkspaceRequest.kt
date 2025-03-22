@@ -5,5 +5,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class WorkspaceRequest(
     val name: String,
-    val localRepoDir: String
+    val localRepoDir: String,
 )

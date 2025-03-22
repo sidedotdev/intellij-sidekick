@@ -11,5 +11,5 @@ data class Task(
     val flowType: String,
     val description: String,
     val created: String,
-    val updated: String
+    val updated: String,
 )

@@ -4,10 +4,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class TasksResponse(
-    val tasks: List<Task>
+    val tasks: List<Task>,
 )
 
 @Serializable
 data class TaskResponse(
-    val task: Task
+    val task: Task,
 )

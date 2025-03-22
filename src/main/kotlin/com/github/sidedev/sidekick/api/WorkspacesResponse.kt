@@ -4,12 +4,12 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class WorkspacesResponse(
-    val workspaces: List<Workspace>
+    val workspaces: List<Workspace>,
 )
 
 @Serializable
 data class WorkspaceResponse(
-    val workspace: Workspace
+    val workspace: Workspace,
 )
 
 @Serializable
@@ -18,5 +18,5 @@ data class Workspace(
     val name: String,
     val localRepoDir: String,
     val created: String,
-    val updated: String
+    val updated: String,
 )
