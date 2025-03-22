@@ -16,8 +16,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.NotNull
+import com.intellij.ui.ToolbarDecorator
 import java.awt.BorderLayout
+import java.awt.CardLayout
 import javax.swing.JLabel
+import javax.swing.JPanel
 import javax.swing.SwingConstants
 
 class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
@@ -48,6 +51,14 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
     ) {
         private val taskListModel = TaskListModel()
         internal lateinit var statusLabel: JLabel
+        private lateinit var cardLayout: CardLayout
+        private lateinit var contentPanel: JPanel
+        private val taskCreationPanel = TaskCreationPanel()
+
+        companion object {
+            private const val TASK_LIST_CARD = "TASK_LIST"
+            private const val TASK_CREATION_CARD = "TASK_CREATION"
+        }
 
         fun getContent(): JBPanel<JBPanel<*>> {
             val mainPanel = JBPanel<JBPanel<*>>().apply {
@@ -60,11 +71,32 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
             }
             mainPanel.add(statusLabel, BorderLayout.NORTH)
 
-            // Task list in a scroll pane in the center
+            // Card layout panel for switching between views
+            cardLayout = CardLayout()
+            contentPanel = JPanel(cardLayout)
+
+            // Task list panel with toolbar
+            val taskListPanel = JBPanel<JBPanel<*>>().apply {
+                layout = BorderLayout()
+            }
+            
+            // Task list in a scroll pane
             val taskList = JBList(taskListModel).apply {
                 cellRenderer = TaskCellRenderer()
             }
-            mainPanel.add(JBScrollPane(taskList), BorderLayout.CENTER)
+
+            // Add toolbar with create task button
+            val taskListWithToolbar = ToolbarDecorator.createDecorator(taskList)
+                .setAddAction { _ -> showTaskCreation() }
+                .createPanel()
+
+            taskListPanel.add(taskListWithToolbar, BorderLayout.CENTER)
+
+            // Add both panels to card layout
+            contentPanel.add(taskListPanel, TASK_LIST_CARD)
+            contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
+
+            mainPanel.add(contentPanel, BorderLayout.CENTER)
 
             statusLabel.text = "Loading..."
 
@@ -75,7 +107,16 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
                 }
             }
 
+            cardLayout.show(contentPanel, TASK_LIST_CARD)
             return mainPanel
+        }
+
+        private fun showTaskCreation() {
+            cardLayout.show(contentPanel, TASK_CREATION_CARD)
+        }
+
+        fun showTaskList() {
+            cardLayout.show(contentPanel, TASK_LIST_CARD)
         }
 
         internal suspend fun updateWorkspaceContent() {
