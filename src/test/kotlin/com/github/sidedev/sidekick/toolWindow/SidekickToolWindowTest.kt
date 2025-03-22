@@ -6,118 +6,79 @@ import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.Workspace
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.ide.projectView.ProjectView
+import com.intellij.ide.projectView.impl.ProjectViewImpl
+import com.intellij.ide.projectView.impl.ProjectViewToolWindowFactory
+import com.intellij.ide.projectView.impl.ProjectViewPane
+import com.intellij.openapi.wm.ToolWindow
+import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.projectView.BaseProjectViewTestCase
+import com.intellij.testFramework.LightPlatformTestCase
+import com.intellij.testFramework.PlatformTestUtil
+import io.mockk.mockk
+import io.mockk.coVerify
 import io.mockk.coEvery
 import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.mockkStatic
-import io.mockk.slot
-import io.mockk.spyk
-import io.mockk.verify
 import kotlinx.coroutines.runBlocking
-import org.junit.Test
-import java.lang.reflect.Field
-import java.lang.reflect.Method
 import javax.swing.JLabel
 
-class SidekickToolWindowTest : BasePlatformTestCase() {
+class SidekickToolWindowTest : LightPlatformTestCase() {
     private lateinit var toolWindowFactory: SidekickToolWindowFactory
     private lateinit var mockSidekickService: SidekickService
-    
+
     override fun setUp() {
         super.setUp()
-        
+
         // Create a mock SidekickService
         mockSidekickService = mockk()
-        
+
         // Create the factory
         toolWindowFactory = SidekickToolWindowFactory()
-        
-        // Mock the ApplicationManager for UI updates
-        mockkStatic(ApplicationManager::class)
-        val mockApplication = mockk<com.intellij.openapi.application.Application>()
-        every { ApplicationManager.getApplication() } returns mockApplication
-        
-        // Mock executeOnPooledThread to execute the runnable immediately
-        every { 
-            mockApplication.executeOnPooledThread(any()) 
-        } answers { 
-            firstArg<Runnable>().run()
-            mockk()
-        }
-        
-        // Mock invokeLater to execute the runnable immediately
-        every { 
-            mockApplication.invokeLater(any()) 
-        } answers { 
-            firstArg<Runnable>().run()
-        }
     }
-    
+
     override fun tearDown() {
         super.tearDown()
     }
-    
+
     /**
      * Helper method to create a SidekickToolWindow instance with our mock service
      */
-    private fun createToolWindowWithMockService(): Any {
-        // Create a mock ToolWindow
-        val mockToolWindow = mockk<com.intellij.openapi.wm.ToolWindow>()
-        
-        // Create the SidekickToolWindow instance using reflection
-        val constructor = SidekickToolWindowFactory::class.java.getDeclaredClasses()[0].getDeclaredConstructor(
-            SidekickToolWindowFactory::class.java,
-            com.intellij.openapi.wm.ToolWindow::class.java,
-            com.intellij.openapi.project.Project::class.java
-        )
-        constructor.isAccessible = true
-        
-        val toolWindow = constructor.newInstance(toolWindowFactory, mockToolWindow, project)
-        
-        // Replace the SidekickService with our mock
-        val serviceField = toolWindow.javaClass.getDeclaredField("sidekickService")
-        serviceField.isAccessible = true
-        serviceField.set(toolWindow, mockSidekickService)
-        
-        return toolWindow
+    private fun createToolWindowWithMockService(): SidekickToolWindowFactory.SidekickToolWindow {
+        // Create a new instance of SidekickToolWindow using our factory and mock service
+        val sidekickToolWindow = SidekickToolWindowFactory().createSidekickToolWindow(project, mockk<ToolWindow>(relaxed = true), mockSidekickService)
+
+        // Dispatch all events to ensure UI updates are processed
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        return sidekickToolWindow
     }
-    
+
     /**
-     * Helper method to invoke the updateWorkspaceContent method using reflection
+     * Helper method to invoke the updateWorkspaceContent method
      */
-    private fun invokeUpdateWorkspaceContent(toolWindow: Any) {
-        val method = toolWindow.javaClass.getDeclaredMethod("updateWorkspaceContent")
-        method.isAccessible = true
-        runBlocking {
-            method.invoke(toolWindow)
-        }
+    private suspend fun invokeUpdateWorkspaceContent(toolWindow: SidekickToolWindowFactory.SidekickToolWindow) {
+        toolWindow.updateWorkspaceContent()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
     
     /**
      * Helper method to get the status label from the tool window
      */
-    private fun getStatusLabel(toolWindow: Any): JLabel {
-        val field = toolWindow.javaClass.getDeclaredField("statusLabel")
-        field.isAccessible = true
-        return field.get(toolWindow) as JLabel
+    private fun getStatusLabel(toolWindow: SidekickToolWindowFactory.SidekickToolWindow): JLabel {
+        return toolWindow.statusLabel
     }
     
     /**
      * Helper method to get the task list model from the tool window
      */
-    private fun getTaskListModel(toolWindow: Any): TaskListModel {
-        val field = toolWindow.javaClass.getDeclaredField("taskListModel")
-        field.isAccessible = true
-        return field.get(toolWindow) as TaskListModel
+    private fun getTaskListModel(toolWindow: SidekickToolWindowFactory.SidekickToolWindow): TaskListModel {
+        return toolWindow.getTaskListModel()
     }
     
-    fun testNoMatchingWorkspace() {
+    fun testNoMatchingWorkspace() = runBlocking {
         // Mock workspaces response with no matching workspace
         val workspaces = listOf(
-            Workspace(id = "workspace1", name = "Workspace 1", localRepoDir = "/some/other/path")
+            Workspace(id = "workspace1", name = "Workspace 1", localRepoDir = "/some/other/path", created = "2023-01-01T00:00:00Z", updated = "2023-01-01T00:00:00Z")
         )
         coEvery { mockSidekickService.getWorkspaces() } returns ApiResponse.Success(workspaces)
         
@@ -135,16 +96,21 @@ class SidekickToolWindowTest : BasePlatformTestCase() {
         // Verify the task list is empty
         val taskListModel = getTaskListModel(toolWindow)
         assertEquals(0, taskListModel.size)
+        
+        // Verify that getTasks was not called
+        runBlocking {
+            coVerify(exactly = 0) { mockSidekickService.getTasks(any()) }
+        }
     }
     
-    fun testMatchingWorkspaceWithTasks() {
+    fun testMatchingWorkspaceWithTasks() = runBlocking {
         // Set up the project path
         val projectPath = project.basePath
         assertNotNull("Project path should not be null", projectPath)
         
         // Mock workspaces response with a matching workspace
         val workspaces = listOf(
-            Workspace(id = "workspace1", name = "Workspace 1", localRepoDir = projectPath!!)
+            Workspace(id = "workspace1", name = "Workspace 1", localRepoDir = projectPath!!, created = "2023-01-01T00:00:00Z", updated = "2023-01-01T00:00:00Z")
         )
         coEvery { mockSidekickService.getWorkspaces() } returns ApiResponse.Success(workspaces)
         
@@ -155,16 +121,20 @@ class SidekickToolWindowTest : BasePlatformTestCase() {
                 workspaceId = "workspace1",
                 description = "Task 1",
                 status = "In Progress",
-                created = java.time.Instant.now(),
-                updated = java.time.Instant.now()
+                agentType = "agent1",
+                flowType = "flow1",
+                created = "2023-01-01T00:00:00Z",
+                updated = "2023-01-01T00:00:00Z"
             ),
             Task(
                 id = "task2",
                 workspaceId = "workspace1",
                 description = "Task 2",
                 status = "Done",
-                created = java.time.Instant.now(),
-                updated = java.time.Instant.now()
+                agentType = "agent2",
+                flowType = "flow2",
+                created = "2023-01-01T00:00:00Z",
+                updated = "2023-01-01T00:00:00Z"
             )
         )
         coEvery { mockSidekickService.getTasks("workspace1") } returns ApiResponse.Success(tasks)
@@ -183,16 +153,20 @@ class SidekickToolWindowTest : BasePlatformTestCase() {
         // Verify the task list contains the expected tasks
         val taskListModel = getTaskListModel(toolWindow)
         assertEquals(2, taskListModel.size)
+        assertEquals("task1", taskListModel.getElementAt(0).id)
+        assertEquals("task2", taskListModel.getElementAt(1).id)
+        assertEquals("In Progress", taskListModel.getElementAt(0).status)
+        assertEquals("Done", taskListModel.getElementAt(1).status)
     }
     
-    fun testMatchingWorkspaceWithNoTasks() {
+    fun testMatchingWorkspaceWithNoTasks() = runBlocking {
         // Set up the project path
         val projectPath = project.basePath
         assertNotNull("Project path should not be null", projectPath)
         
         // Mock workspaces response with a matching workspace
         val workspaces = listOf(
-            Workspace(id = "workspace1", name = "Workspace 1", localRepoDir = projectPath!!)
+            Workspace(id = "workspace1", name = "Workspace 1", localRepoDir = projectPath!!, created = "2023-01-01T00:00:00Z", updated = "2023-01-01T00:00:00Z")
         )
         coEvery { mockSidekickService.getWorkspaces() } returns ApiResponse.Success(workspaces)
         
@@ -215,7 +189,7 @@ class SidekickToolWindowTest : BasePlatformTestCase() {
         assertEquals(0, taskListModel.size)
     }
     
-    fun testErrorFetchingWorkspaces() {
+    fun testErrorFetchingWorkspaces() = runBlocking {
         // Mock error response for workspaces
         coEvery { mockSidekickService.getWorkspaces() } returns ApiResponse.Error(ApiError("Connection error"))
         
@@ -233,16 +207,19 @@ class SidekickToolWindowTest : BasePlatformTestCase() {
         // Verify the task list is empty
         val taskListModel = getTaskListModel(toolWindow)
         assertEquals(0, taskListModel.size)
+        
+        // Verify that getTasks was not called
+        coVerify(exactly = 0) { mockSidekickService.getTasks(any()) }
     }
     
-    fun testErrorFetchingTasks() {
+    fun testErrorFetchingTasks() = runBlocking {
         // Set up the project path
         val projectPath = project.basePath
         assertNotNull("Project path should not be null", projectPath)
         
         // Mock workspaces response with a matching workspace
         val workspaces = listOf(
-            Workspace(id = "workspace1", name = "Workspace 1", localRepoDir = projectPath!!)
+            Workspace(id = "workspace1", name = "Workspace 1", localRepoDir = projectPath!!, created = "2023-01-01T00:00:00Z", updated = "2023-01-01T00:00:00Z")
         )
         coEvery { mockSidekickService.getWorkspaces() } returns ApiResponse.Success(workspaces)
         

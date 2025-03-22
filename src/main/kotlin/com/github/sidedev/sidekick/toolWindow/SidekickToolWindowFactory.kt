@@ -25,10 +25,15 @@ import java.awt.BorderLayout
 class SidekickToolWindowFactory : ToolWindowFactory {
 
     override fun createToolWindowContent(@NotNull project: Project, @NotNull toolWindow: ToolWindow) {
-        val myToolWindow = SidekickToolWindow(toolWindow, project)
+        createSidekickToolWindow(project, toolWindow, SidekickService())
+    }
+    
+    internal fun createSidekickToolWindow(@NotNull project: Project, @NotNull toolWindow: ToolWindow, service: SidekickService): SidekickToolWindow {
+        val myToolWindow = SidekickToolWindow(toolWindow, project, service)
         val content = ContentFactory.getInstance().createContent(
             myToolWindow.getContent(), null, false)
         toolWindow.contentManager.addContent(content)
+        return myToolWindow
     }
 
     override fun shouldBeAvailable(project: Project) = true
