@@ -66,6 +66,7 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
             }
 
             // Status label at the top
+            // TODO move to separate "loading" panel
             statusLabel = JLabel(MyBundle.message("statusLabel", "?")).apply {
                 horizontalAlignment = SwingConstants.CENTER
             }
@@ -75,7 +76,6 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
             cardLayout = CardLayout()
             contentPanel = JPanel(cardLayout)
 
-            // Task list panel with toolbar
             val taskListPanel = JBPanel<JBPanel<*>>().apply {
                 layout = BorderLayout()
             }
@@ -94,8 +94,6 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
 
             // Add task list panel to card layout
             contentPanel.add(taskListPanel, TASK_LIST_CARD)
-
-
             mainPanel.add(contentPanel, BorderLayout.CENTER)
 
             statusLabel.text = "Loading..."
@@ -107,7 +105,6 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
                 }
             }
 
-            cardLayout.show(contentPanel, TASK_LIST_CARD)
             return mainPanel
         }
 
@@ -143,6 +140,7 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
                                                 }
                                             )
                                             contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
+                                            showTaskCreation()
 
                                             if (tasks.isEmpty()) {
                                                 statusLabel.text = MyBundle.message("statusLabel", "No tasks found")

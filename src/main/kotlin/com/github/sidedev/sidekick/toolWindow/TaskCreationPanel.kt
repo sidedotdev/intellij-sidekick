@@ -31,7 +31,7 @@ class TaskCreationPanel(
 ) : JBPanel<JBPanel<*>>() {
     private val buttonValues = mutableMapOf<ActionLink, String>()
 
-    private val descriptionTextArea = JBTextArea().apply {
+    internal val descriptionTextArea = JBTextArea().apply {
         lineWrap = true
         wrapStyleWord = true
         emptyText.text = "Task description - the more detail, the better"
@@ -39,19 +39,19 @@ class TaskCreationPanel(
         preferredSize = Dimension(300, 150)
     }
 
-    private val determineRequirementsCheckbox = JBCheckBox("Determine Requirements", true)
+    internal val determineRequirementsCheckbox = JBCheckBox("Determine Requirements", true)
 
-    private val statusButtons = createSegmentedButton(
+    internal val statusButtons = createSegmentedButton(
         listOf("To Do" to "TODO", "Drafting" to "DRAFTING"),
         "TODO"
     )
 
-    private val flowTypeButtons = createSegmentedButton(
+    internal val flowTypeButtons = createSegmentedButton(
         listOf("Just Code" to "JUST_CODE", "Plan Then Code" to "PLAN_THEN_CODE"),
         getLastFlowType()
     )
 
-    private val createButton = JButton("Create Task").apply {
+    internal val createButton = JButton("Create Task").apply {
         addActionListener { createTask() }
     }
 
