@@ -53,7 +53,7 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
         internal lateinit var statusLabel: JLabel
         private lateinit var cardLayout: CardLayout
         private lateinit var contentPanel: JPanel
-        private val taskCreationPanel = TaskCreationPanel()
+        //private lateinit var taskCreationPanel: TaskCreationPanel
 
         companion object {
             private const val TASK_LIST_CARD = "TASK_LIST"
@@ -92,9 +92,9 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
 
             taskListPanel.add(taskListWithToolbar, BorderLayout.CENTER)
 
-            // Add both panels to card layout
+            // Add task list panel to card layout
             contentPanel.add(taskListPanel, TASK_LIST_CARD)
-            contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
+
 
             mainPanel.add(contentPanel, BorderLayout.CENTER)
 
@@ -132,6 +132,18 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
                                     is ApiResponse.Success -> {
                                         val tasks = tasksResult.data
                                         ApplicationManager.getApplication().invokeLater {
+                                            val taskCreationPanel = TaskCreationPanel(
+                                                sidekickService = sidekickService,
+                                                workspaceId = workspace.id,
+                                                onTaskCreated = {
+                                                    showTaskList()
+                                                    CoroutineScope(Dispatchers.IO).launch {
+                                                        updateWorkspaceContent()
+                                                    }
+                                                }
+                                            )
+                                            contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
+
                                             if (tasks.isEmpty()) {
                                                 statusLabel.text = MyBundle.message("statusLabel", "No tasks found")
                                             } else {
