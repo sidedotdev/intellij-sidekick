@@ -48,7 +48,7 @@ class TaskCreationPanel(
 
     private val flowTypeButtons = createSegmentedButton(
         listOf("Just Code" to "JUST_CODE", "Plan Then Code" to "PLAN_THEN_CODE"),
-        PropertiesComponent.getInstance().getValue(LAST_FLOW_TYPE_KEY, "JUST_CODE")
+        getLastFlowType()
     )
 
     private val createButton = JButton("Create Task").apply {
@@ -123,7 +123,7 @@ class TaskCreationPanel(
         val flowType = getSelectedValue(flowTypeButtons)
 
         // Store the selected flow type
-        PropertiesComponent.getInstance().setValue(LAST_FLOW_TYPE_KEY, flowType)
+        saveFlowType(flowType)
 
         val taskRequest = TaskRequest(
             description = description,
@@ -156,5 +156,14 @@ class TaskCreationPanel(
 
     companion object {
         private const val LAST_FLOW_TYPE_KEY = "sidekick.lastFlowType"
+        private const val DEFAULT_FLOW_TYPE = "JUST_CODE"
+    }
+
+    private fun getLastFlowType(): String {
+        return PropertiesComponent.getInstance().getValue(LAST_FLOW_TYPE_KEY, DEFAULT_FLOW_TYPE)
+    }
+
+    private fun saveFlowType(flowType: String) {
+        PropertiesComponent.getInstance().setValue(LAST_FLOW_TYPE_KEY, flowType)
     }
 }
