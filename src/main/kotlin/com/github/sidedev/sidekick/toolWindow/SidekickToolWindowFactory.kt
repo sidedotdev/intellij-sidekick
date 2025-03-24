@@ -8,22 +8,23 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
-import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.ContentFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.NotNull
-import com.intellij.ui.ToolbarDecorator
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingConstants
 
-class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
+class SidekickToolWindowFactory :
+    ToolWindowFactory,
+    DumbAware {
     override fun createToolWindowContent(
         @NotNull project: Project,
         @NotNull toolWindow: ToolWindow,
@@ -53,7 +54,7 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
         internal lateinit var statusLabel: JLabel
         private lateinit var cardLayout: CardLayout
         private lateinit var contentPanel: JPanel
-        //private lateinit var taskCreationPanel: TaskCreationPanel
+        // private lateinit var taskCreationPanel: TaskCreationPanel
 
         companion object {
             private const val TASK_LIST_CARD = "TASK_LIST"
@@ -79,14 +80,15 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
             val taskListPanel = JBPanel<JBPanel<*>>().apply {
                 layout = BorderLayout()
             }
-            
+
             // Task list in a scroll pane
             val taskList = JBList(taskListModel).apply {
                 cellRenderer = TaskCellRenderer()
             }
 
             // Add toolbar with create task button
-            val taskListWithToolbar = ToolbarDecorator.createDecorator(taskList)
+            val taskListWithToolbar = ToolbarDecorator
+                .createDecorator(taskList)
                 .setAddAction { _ -> showTaskCreation() }
                 .createPanel()
 
@@ -137,7 +139,7 @@ class SidekickToolWindowFactory : ToolWindowFactory, DumbAware {
                                                     CoroutineScope(Dispatchers.IO).launch {
                                                         updateWorkspaceContent()
                                                     }
-                                                }
+                                                },
                                             )
                                             contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
                                             showTaskCreation()

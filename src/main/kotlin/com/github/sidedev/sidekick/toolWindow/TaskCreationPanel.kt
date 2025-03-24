@@ -4,17 +4,16 @@ import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.TaskRequest
 import com.intellij.ide.util.PropertiesComponent
-import com.intellij.openapi.ui.Messages
 import com.intellij.ui.JBColor
+import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
-import com.intellij.ui.components.ActionLink
+import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.util.ui.JBUI
-import com.intellij.ui.components.panels.HorizontalLayout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,7 +29,7 @@ class TaskCreationPanel(
     private val onTaskCreated: () -> Unit,
 ) : JBPanel<JBPanel<*>>() {
     private val buttonValues = mutableMapOf<ActionLink, String>()
-    
+
     private val errorLabel = JBLabel().apply {
         foreground = JBColor.RED
         isVisible = false
@@ -48,7 +47,7 @@ class TaskCreationPanel(
 
     internal val flowTypeButtons = createSegmentedButton(
         listOf("Just Code" to "basic_dev", "Plan Then Code" to "planned_dev"),
-        getLastFlowType()
+        getLastFlowType(),
     )
 
     internal val createButton = JButton("Create Task").apply {
@@ -75,7 +74,7 @@ class TaskCreationPanel(
 
     private fun createSegmentedButton(
         options: List<Pair<String, String>>,
-        defaultValue: String
+        defaultValue: String,
     ): JPanel {
         val panel = JPanel(HorizontalLayout(0))
         var selectedButton: ActionLink? = null
@@ -101,13 +100,11 @@ class TaskCreationPanel(
         return panel
     }
 
-    private fun getSelectedValue(panel: JPanel): String {
-        return panel.components
-            .filterIsInstance<ActionLink>()
-            .find { it.foreground == JBColor.BLUE }
-            ?.let { buttonValues[it] }
-            ?: throw IllegalStateException("No option selected")
-    }
+    private fun getSelectedValue(panel: JPanel): String = panel.components
+        .filterIsInstance<ActionLink>()
+        .find { it.foreground == JBColor.BLUE }
+        ?.let { buttonValues[it] }
+        ?: throw IllegalStateException("No option selected")
 
     private fun showError(message: String) {
         errorLabel.text = "<html>${message.replace("\n", "<br>")}</html>"
@@ -121,7 +118,7 @@ class TaskCreationPanel(
 
     private fun createTask() {
         clearError()
-        
+
         val description = descriptionTextArea.text
         if (description.isEmpty()) {
             showError("Please enter a task description")
@@ -139,8 +136,8 @@ class TaskCreationPanel(
             agentType = "llm",
             flowType = flowType,
             flowOptions = FlowOptions(
-                determineRequirements = determineRequirementsCheckbox.isSelected
-            )
+                determineRequirements = determineRequirementsCheckbox.isSelected,
+            ),
         )
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -164,13 +161,11 @@ class TaskCreationPanel(
     }
 
     companion object {
-        private const val LAST_FLOW_TYPE_KEY = "sidekick.lastFlowType"
+        private const val LAST_FLOW_TYPE_KEY = "sidekick.flowType"
         private const val DEFAULT_FLOW_TYPE = "basic_dev"
     }
 
-    private fun getLastFlowType(): String {
-        return PropertiesComponent.getInstance().getValue(LAST_FLOW_TYPE_KEY, DEFAULT_FLOW_TYPE)
-    }
+    private fun getLastFlowType(): String = PropertiesComponent.getInstance().getValue(LAST_FLOW_TYPE_KEY, DEFAULT_FLOW_TYPE)
 
     private fun saveFlowType(flowType: String) {
         PropertiesComponent.getInstance().setValue(LAST_FLOW_TYPE_KEY, flowType)

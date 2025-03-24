@@ -15,5 +15,5 @@ data class TaskRequest(
     val status: String,
     val agentType: String,
     val flowType: String,
-    val flowOptions: FlowOptions
+    val flowOptions: FlowOptions,
 )

@@ -1,12 +1,8 @@
 package com.github.sidedev.sidekick.toolWindow
 
-import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
-import com.github.sidedev.sidekick.api.TaskRequest
-import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
-import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -15,10 +11,10 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 
 @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
 class TaskCreationPanelTest : BasePlatformTestCase() {
@@ -30,14 +26,14 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
     override fun setUp() {
         super.setUp()
         Dispatchers.setMain(mainThreadSurrogate)
-        
+
         sidekickService = mockk()
         taskCreatedCallbackInvoked = false
-        
+
         taskCreationPanel = TaskCreationPanel(
             sidekickService = sidekickService,
             workspaceId = "ws_123",
-            onTaskCreated = { taskCreatedCallbackInvoked = true }
+            onTaskCreated = { taskCreatedCallbackInvoked = true },
         )
     }
 
@@ -60,10 +56,10 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         )
 
         // Given: Mock service that will return success
-        coEvery { 
+        coEvery {
             sidekickService.createTask(
                 any(),
-                any()
+                any(),
             )
         } returns ApiResponse.Success(task)
 
@@ -73,7 +69,6 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
 
         // And: Click create button
         taskCreationPanel.createButton.doClick()
-
 
         // FIXME: need a better way to wait for button event to be processed
         Thread.sleep(100)
@@ -89,7 +84,7 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         coVerify(exactly = 1) {
             sidekickService.createTask(
                 workspaceId = "ws_123",
-                any()
+                any(),
             )
         }
 

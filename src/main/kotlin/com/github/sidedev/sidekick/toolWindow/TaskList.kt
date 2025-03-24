@@ -24,7 +24,6 @@ class TaskListModel : AbstractListModel<Task>() {
 }
 
 class TaskCellRenderer : ListCellRenderer<Task> {
-
     override fun getListCellRendererComponent(
         list: JList<out Task>,
         value: Task,
