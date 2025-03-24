@@ -84,7 +84,7 @@ class SidekickService(
     suspend fun createTask(workspaceId: String, taskRequest: TaskRequest): ApiResponse<Task, ApiError> =
         request<TaskRequest, TaskResponse>(
             method = HttpMethod.Post,
-            path = "/workspaces/$workspaceId/tasks",
+            path = "/workspaces/$workspaceId/tasks/",
             requestBody = taskRequest,
         ).map { it.task }
 

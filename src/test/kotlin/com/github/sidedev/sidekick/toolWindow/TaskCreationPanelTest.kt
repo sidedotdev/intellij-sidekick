@@ -17,8 +17,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 
 @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
 class TaskCreationPanelTest : BasePlatformTestCase() {
@@ -36,7 +36,7 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         
         taskCreationPanel = TaskCreationPanel(
             sidekickService = sidekickService,
-            workspaceId = "test-workspace",
+            workspaceId = "ws_123",
             onTaskCreated = { taskCreatedCallbackInvoked = true }
         )
     }
@@ -74,6 +74,10 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         // And: Click create button
         taskCreationPanel.createButton.doClick()
 
+
+        // FIXME: need a better way to wait for button event to be processed
+        Thread.sleep(100)
+
         // Wait for all coroutines to complete
         advanceUntilIdle()
 
@@ -81,15 +85,15 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         assertEquals("", taskCreationPanel.descriptionTextArea.text)
         assertTrue(taskCreationPanel.determineRequirementsCheckbox.isSelected)
 
-        // But: API was never called
-        coVerify(exactly = 0) { 
+        // And: API was called
+        coVerify(exactly = 1) {
             sidekickService.createTask(
-                any(),
+                workspaceId = "ws_123",
                 any()
             )
         }
 
-        // And: Callback was not invoked
-        assertFalse(taskCreatedCallbackInvoked)
+        // And callback was invoked
+        assertTrue(taskCreatedCallbackInvoked)
     }
 }

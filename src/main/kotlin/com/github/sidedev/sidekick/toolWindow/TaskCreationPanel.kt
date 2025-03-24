@@ -41,13 +41,8 @@ class TaskCreationPanel(
 
     internal val determineRequirementsCheckbox = JBCheckBox("Determine Requirements", true)
 
-    internal val statusButtons = createSegmentedButton(
-        listOf("To Do" to "TODO", "Drafting" to "DRAFTING"),
-        "TODO"
-    )
-
     internal val flowTypeButtons = createSegmentedButton(
-        listOf("Just Code" to "JUST_CODE", "Plan Then Code" to "PLAN_THEN_CODE"),
+        listOf("Just Code" to "basic_dev", "Plan Then Code" to "planned_dev"),
         getLastFlowType()
     )
 
@@ -61,7 +56,6 @@ class TaskCreationPanel(
 
         val formPanel = JPanel(VerticalLayout(10)).apply {
             add(JBLabel("Status:"))
-            add(statusButtons)
             add(JBLabel("Flow Type:"))
             add(flowTypeButtons)
             add(JBLabel("Description:"))
@@ -110,7 +104,7 @@ class TaskCreationPanel(
     }
 
     private fun createTask() {
-        val description = descriptionTextArea.text.trim()
+        val description = descriptionTextArea.text
         if (description.isEmpty()) {
             Messages.showErrorDialog(
                 "Please enter a task description",
@@ -119,7 +113,6 @@ class TaskCreationPanel(
             return
         }
 
-        val status = getSelectedValue(statusButtons)
         val flowType = getSelectedValue(flowTypeButtons)
 
         // Store the selected flow type
@@ -127,7 +120,7 @@ class TaskCreationPanel(
 
         val taskRequest = TaskRequest(
             description = description,
-            status = status,
+            status = "to_do",
             agentType = "llm",
             flowType = flowType,
             flowOptions = FlowOptions(
@@ -137,9 +130,14 @@ class TaskCreationPanel(
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                sidekickService.createTask(workspaceId, taskRequest)
-                clearForm()
-                onTaskCreated()
+                val response = sidekickService.createTask(workspaceId, taskRequest)
+                if (response.isSuccess()) {
+                    clearForm()
+                    onTaskCreated()
+                } else {
+                    // FIXME don't use text area for error
+                    descriptionTextArea.text = response.getErrorIfAny()?.error ?: "Unknown error"
+                }
             } catch (e: Exception) {
                 Messages.showErrorDialog(
                     "Failed to create task: ${e.message}",
@@ -156,7 +154,7 @@ class TaskCreationPanel(
 
     companion object {
         private const val LAST_FLOW_TYPE_KEY = "sidekick.lastFlowType"
-        private const val DEFAULT_FLOW_TYPE = "JUST_CODE"
+        private const val DEFAULT_FLOW_TYPE = "basic_dev"
     }
 
     private fun getLastFlowType(): String {
