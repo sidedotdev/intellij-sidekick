@@ -25,7 +25,9 @@ sealed class ApiResponse<out T, out E> {
         is Success -> this
         is Error -> {
             f(this.error)
-            throw IllegalStateException("unwrapOrEscalate - this should be unreachable with correct usage: This ApiResponse object is an error: ${this.error}")
+            throw IllegalStateException(
+                "unwrapOrEscalate - this should be unreachable with correct usage: This ApiResponse object is an error: ${this.error}",
+            )
         }
     }
 
