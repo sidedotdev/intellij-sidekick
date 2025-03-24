@@ -33,7 +33,7 @@ class TaskCreationPanel(
 ) : JBPanel<JBPanel<*>>() {
     private val buttonValues = mutableMapOf<ActionLink, String>()
 
-    private val errorLabel = JBLabel().apply {
+    internal val errorLabel = JBLabel().apply {
         foreground = JBColor.RED
         isVisible = false
     }

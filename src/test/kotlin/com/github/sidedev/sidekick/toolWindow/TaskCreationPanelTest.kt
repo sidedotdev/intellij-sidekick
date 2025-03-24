@@ -2,6 +2,7 @@ package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
+import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.coEvery
@@ -43,6 +44,46 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
     override fun tearDown() {
         super.tearDown()
         Dispatchers.resetMain()
+    }
+
+    fun testEmptyDescriptionShowsError() = runTest {
+        // When: Click create button without entering description
+        taskCreationPanel.createButton.doClick()
+
+        // Then: Error is shown
+        assertTrue(taskCreationPanel.errorLabel.isVisible)
+        assertEquals("<html>Please enter a task description</html>", taskCreationPanel.errorLabel.text)
+
+        // And: API was not called
+        coVerify(exactly = 0) {
+            sidekickService.createTask(any(), any())
+        }
+
+        // And: Callback was not invoked
+        assertFalse(taskCreatedCallbackInvoked)
+    }
+
+    fun testApiErrorShowsErrorMessage() = runTest {
+        // Given: Mock service that will return error
+        coEvery {
+            sidekickService.createTask(any(), any())
+        } returns ApiResponse.Error(error = ApiError("API Error Message"))
+
+        // When: Fill the form
+        taskCreationPanel.descriptionTextArea.text = "Test description"
+
+        // And: Click create button
+        taskCreationPanel.createButton.doClick()
+
+        // Then: Error is shown
+        assertTrue(taskCreationPanel.errorLabel.isVisible)
+        assertEquals("<html>API Error Message</html>", taskCreationPanel.errorLabel.text)
+
+        // And: Form is not cleared
+        assertEquals("Test description", taskCreationPanel.descriptionTextArea.text)
+
+        // And: Callback was not invoked
+        assertFalse(taskCreatedCallbackInvoked)
     }
 
     fun testCreateTaskClearsFormWithoutApiCall() = runTest {
