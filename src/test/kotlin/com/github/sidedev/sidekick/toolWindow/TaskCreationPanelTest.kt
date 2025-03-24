@@ -19,6 +19,10 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
     private lateinit var sidekickService: SidekickService
     private lateinit var taskCreationPanel: TaskCreationPanel
     private var taskCreatedCallbackInvoked = false
+
+    // the unconfined test dispatcher makes tests much simpler, given we don't
+    // care about coroutine ordering etc., but just want to run coroutines to
+    // completion typically, then assert
     private val testDispatcher = UnconfinedTestDispatcher()
 
     override fun setUp() {
