@@ -30,6 +30,11 @@ class TaskCreationPanel(
     private val onTaskCreated: () -> Unit,
 ) : JBPanel<JBPanel<*>>() {
     private val buttonValues = mutableMapOf<ActionLink, String>()
+    
+    private val errorLabel = JBLabel().apply {
+        foreground = JBColor.RED
+        isVisible = false
+    }
 
     internal val descriptionTextArea = JBTextArea().apply {
         lineWrap = true
@@ -60,6 +65,7 @@ class TaskCreationPanel(
             add(flowTypeButtons)
             add(JBLabel("Description:"))
             add(JBScrollPane(descriptionTextArea))
+            add(errorLabel)
             add(determineRequirementsCheckbox)
             add(createButton)
         }
@@ -103,13 +109,22 @@ class TaskCreationPanel(
             ?: throw IllegalStateException("No option selected")
     }
 
+    private fun showError(message: String) {
+        errorLabel.text = "<html>${message.replace("\n", "<br>")}</html>"
+        errorLabel.isVisible = true
+    }
+
+    private fun clearError() {
+        errorLabel.isVisible = false
+        errorLabel.text = ""
+    }
+
     private fun createTask() {
+        clearError()
+        
         val description = descriptionTextArea.text
         if (description.isEmpty()) {
-            Messages.showErrorDialog(
-                "Please enter a task description",
-                "Validation Error"
-            )
+            showError("Please enter a task description")
             return
         }
 
@@ -135,14 +150,10 @@ class TaskCreationPanel(
                     clearForm()
                     onTaskCreated()
                 } else {
-                    // FIXME don't use text area for error
-                    descriptionTextArea.text = response.getErrorIfAny()?.error ?: "Unknown error"
+                    showError(response.getErrorIfAny()?.error ?: "Unknown error")
                 }
             } catch (e: Exception) {
-                Messages.showErrorDialog(
-                    "Failed to create task: ${e.message}",
-                    "Error"
-                )
+                showError("Failed to create task: ${e.message}")
             }
         }
     }
