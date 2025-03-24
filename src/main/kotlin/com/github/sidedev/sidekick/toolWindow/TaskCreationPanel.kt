@@ -3,6 +3,7 @@ package com.github.sidedev.sidekick.toolWindow
 import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.TaskRequest
+import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.ActionLink
@@ -142,12 +143,15 @@ class TaskCreationPanel(
 
         CoroutineScope(dispatcher).launch {
             try {
-                val response = sidekickService.createTask(workspaceId, taskRequest)
-                if (response.isSuccess()) {
-                    clearForm()
-                    onTaskCreated()
-                } else {
-                    showError(response.getErrorIfAny()?.error ?: "Unknown error")
+                when (val response = sidekickService.createTask(workspaceId, taskRequest)) {
+                    is ApiResponse.Success -> {
+                        clearForm()
+                        // TODO pass in the task to the onTaskCreated callback
+                        onTaskCreated()
+                    }
+                    is ApiResponse.Error -> {
+                        showError(response.error.error)
+                    }
                 }
             } catch (e: Exception) {
                 showError("Failed to create task: ${e.message}")
@@ -165,9 +169,9 @@ class TaskCreationPanel(
         private const val DEFAULT_FLOW_TYPE = "basic_dev"
     }
 
-    private fun getLastFlowType(): String = PropertiesComponent.getInstance().getValue(LAST_FLOW_TYPE_KEY, DEFAULT_FLOW_TYPE)
+    private fun getLastFlowType(): String =
+        PropertiesComponent.getInstance().getValue(LAST_FLOW_TYPE_KEY, DEFAULT_FLOW_TYPE)
 
-    private fun saveFlowType(flowType: String) {
+    private fun saveFlowType(flowType: String) =
         PropertiesComponent.getInstance().setValue(LAST_FLOW_TYPE_KEY, flowType)
-    }
 }

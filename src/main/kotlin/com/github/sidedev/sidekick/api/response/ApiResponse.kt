@@ -13,6 +13,22 @@ sealed class ApiResponse<out T, out E> {
 
     fun isError(): Boolean = this is Error
 
+    // similar to Rust's unwrap, not recommended
+    fun unwrap(): T = when (this) {
+        is Success -> this.data
+        is Error -> throw IllegalStateException("This ApiResponse object is an error: ${this.error}")
+    }
+
+    // similar to Rust's try! macro (later replaced by `?` syntax), except we need the caller to provide a
+    // lambda function to return @funcName
+    fun unwrapOrEscalate(f: (E) -> Unit) = when (this) {
+        is Success -> this
+        is Error -> {
+            f(this.error)
+            throw IllegalStateException("unwrapOrEscalate - this should be unreachable with correct usage: This ApiResponse object is an error: ${this.error}")
+        }
+    }
+
     fun getErrorIfAny(): E? = when (this) {
         is Error -> this.error
         else -> null
