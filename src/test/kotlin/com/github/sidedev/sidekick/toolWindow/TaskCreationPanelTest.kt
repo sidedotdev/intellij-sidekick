@@ -7,25 +7,23 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.newSingleThreadContext
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 
-@OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class TaskCreationPanelTest : BasePlatformTestCase() {
     private lateinit var sidekickService: SidekickService
     private lateinit var taskCreationPanel: TaskCreationPanel
-    private val mainThreadSurrogate = newSingleThreadContext("UI thread")
     private var taskCreatedCallbackInvoked = false
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     override fun setUp() {
         super.setUp()
-        Dispatchers.setMain(mainThreadSurrogate)
+        Dispatchers.setMain(testDispatcher)
 
         sidekickService = mockk()
         taskCreatedCallbackInvoked = false
@@ -34,13 +32,13 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
             sidekickService = sidekickService,
             workspaceId = "ws_123",
             onTaskCreated = { taskCreatedCallbackInvoked = true },
+            dispatcher = testDispatcher,
         )
     }
 
     override fun tearDown() {
         super.tearDown()
         Dispatchers.resetMain()
-        mainThreadSurrogate.close()
     }
 
     fun testCreateTaskClearsFormWithoutApiCall() = runTest {
@@ -69,12 +67,6 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
 
         // And: Click create button
         taskCreationPanel.createButton.doClick()
-
-        // FIXME: need a better way to wait for button event to be processed
-        Thread.sleep(100)
-
-        // Wait for all coroutines to complete
-        advanceUntilIdle()
 
         // Then: Form is cleared
         assertEquals("", taskCreationPanel.descriptionTextArea.text)

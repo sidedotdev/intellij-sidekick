@@ -14,6 +14,7 @@ import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.panels.HorizontalLayout
 import com.intellij.ui.components.panels.VerticalLayout
 import com.intellij.util.ui.JBUI
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,6 +28,7 @@ class TaskCreationPanel(
     private val sidekickService: SidekickService,
     private val workspaceId: String,
     private val onTaskCreated: () -> Unit,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JBPanel<JBPanel<*>>() {
     private val buttonValues = mutableMapOf<ActionLink, String>()
 
@@ -43,7 +45,7 @@ class TaskCreationPanel(
         preferredSize = Dimension(300, 150)
     }
 
-    internal val determineRequirementsCheckbox = JBCheckBox("Determine Requirements", true)
+    internal val determineRequirementsCheckbox = JBCheckBox("Determine requirements", true)
 
     internal val flowTypeButtons = createSegmentedButton(
         listOf("Just Code" to "basic_dev", "Plan Then Code" to "planned_dev"),
@@ -59,13 +61,11 @@ class TaskCreationPanel(
         border = EmptyBorder(JBUI.insets(10))
 
         val formPanel = JPanel(VerticalLayout(10)).apply {
-            add(JBLabel("Status:"))
             add(JBLabel("Flow Type:"))
             add(flowTypeButtons)
-            add(JBLabel("Description:"))
+            add(determineRequirementsCheckbox)
             add(JBScrollPane(descriptionTextArea))
             add(errorLabel)
-            add(determineRequirementsCheckbox)
             add(createButton)
         }
 
@@ -140,7 +140,7 @@ class TaskCreationPanel(
             ),
         )
 
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(dispatcher).launch {
             try {
                 val response = sidekickService.createTask(workspaceId, taskRequest)
                 if (response.isSuccess()) {
