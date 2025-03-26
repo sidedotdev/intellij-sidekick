@@ -6,6 +6,7 @@ import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.Workspace
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.testFramework.LightPlatformTestCase
 import com.intellij.testFramework.PlatformTestUtil
@@ -27,6 +28,9 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
 
         // Create the factory
         toolWindowFactory = SidekickToolWindowFactory()
+
+        // Clear any cached workspace ID
+        PropertiesComponent.getInstance(project).unsetValue(SidekickToolWindowFactory.SidekickToolWindow.WORKSPACE_ID_KEY_PREFIX + project.basePath)
     }
 
     override fun tearDown() {
