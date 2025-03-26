@@ -53,51 +53,57 @@ class SidekickToolWindowFactory :
         private val sidekickService: SidekickService = SidekickService(),
     ) {
         private val taskListModel = TaskListModel()
-        internal lateinit var statusLabel: JLabel
         private lateinit var cardLayout: CardLayout
-        private lateinit var contentPanel: JPanel
-        private lateinit var retryButton: JButton
-        // private lateinit var taskCreationPanel: TaskCreationPanel
+        internal lateinit var contentPanel: JBPanel<JBPanel<*>>
+        internal lateinit var loadingPanel: LoadingPanel
+        private lateinit var taskListStatusLabel: JLabel
 
         companion object {
+            // TODO move to TaskListPanel.NAME constant
             private const val TASK_LIST_CARD = "TASK_LIST"
+            // TODO move to TaskCreationPanel.NAME constant
             private const val TASK_CREATION_CARD = "TASK_CREATION"
             internal const val WORKSPACE_ID_KEY_PREFIX = "sidekick.workspace.id."
         }
 
         fun getContent(): JBPanel<JBPanel<*>> {
-            val mainPanel = JBPanel<JBPanel<*>>().apply {
-                layout = BorderLayout()
-            }
-
-            // Status label at the top
-            // TODO move to separate "loading" panel
-            val topPanel = JPanel(BorderLayout())
-            statusLabel = JLabel(MyBundle.message("statusLabel", "?")).apply {
-                horizontalAlignment = SwingConstants.CENTER
-            }
-            topPanel.add(statusLabel, BorderLayout.CENTER)
-
-            retryButton = JButton("Retry").apply {
-                isVisible = false
-                addActionListener {
-                    ApplicationManager.getApplication().executeOnPooledThread {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            setupWorkspace()
-                        }
-                    }
-                }
-            }
-            topPanel.add(retryButton, BorderLayout.EAST)
-            mainPanel.add(topPanel, BorderLayout.NORTH)
-
             // Card layout panel for switching between views
             cardLayout = CardLayout()
-            contentPanel = JPanel(cardLayout)
+            contentPanel = JBPanel<JBPanel<*>>().apply {
+                layout = cardLayout
+            }
 
+            // Create and add loading panel
+            loadingPanel = LoadingPanel(
+                project = project,
+                sidekickService = sidekickService,
+                onWorkspaceLoaded = { workspaceId ->
+                    ApplicationManager.getApplication().invokeLater {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            refreshTaskList()
+                        }
+                        setupTaskPanels(workspaceId)
+                        // TODO if there is a single active task, show the TaskViewPanel.NAME, if multiple active, show TaskListPanel.NAME, otherwise show TaskCreationPanel.NAME
+                        //cardLayout.show(contentPanel, TASK_LIST_CARD)
+                        cardLayout.show(contentPanel, TASK_CREATION_CARD)
+                    }
+                }
+            )
+            contentPanel.add(loadingPanel, LoadingPanel.NAME)
+            cardLayout.show(contentPanel, LoadingPanel.NAME)
+
+            // Create task list panel
             val taskListPanel = JBPanel<JBPanel<*>>().apply {
                 layout = BorderLayout()
+                name = "TASK_LIST"
             }
+
+            // Add status label at the top
+            taskListStatusLabel = JLabel().apply {
+                name = "taskListStatusLabel"
+                horizontalAlignment = SwingConstants.CENTER
+            }
+            taskListPanel.add(taskListStatusLabel, BorderLayout.NORTH)
 
             // Task list in a scroll pane
             val taskList = JBList(taskListModel).apply {
@@ -114,119 +120,52 @@ class SidekickToolWindowFactory :
 
             // Add task list panel to card layout
             contentPanel.add(taskListPanel, TASK_LIST_CARD)
-            mainPanel.add(contentPanel, BorderLayout.CENTER)
 
-            statusLabel.text = "Loading..."
-
-            // Check workspace status
-            ApplicationManager.getApplication().executeOnPooledThread {
-                CoroutineScope(Dispatchers.IO).launch {
-                    updateWorkspaceContent()
-                }
-            }
-
-            return mainPanel
+            return contentPanel
         }
 
-        private fun getWorkspaceIdKey(): String {
-            return WORKSPACE_ID_KEY_PREFIX + (project.basePath ?: "")
+        private fun setupTaskPanels(workspaceId: String) {
+            val taskCreationPanel = TaskCreationPanel(
+                sidekickService = sidekickService,
+                workspaceId = workspaceId,
+                onTaskCreated = {
+                    showTaskList()
+                    CoroutineScope(Dispatchers.IO).launch {
+                        refreshTaskList()
+                    }
+                },
+            )
+            contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
         }
 
         private fun getCachedWorkspaceId(): String? {
-            return PropertiesComponent.getInstance(project).getValue(getWorkspaceIdKey())
+            return PropertiesComponent.getInstance(project).getValue(WORKSPACE_ID_KEY_PREFIX + (project.basePath ?: ""))
         }
 
-        private fun setCachedWorkspaceId(workspaceId: String) {
-            PropertiesComponent.getInstance(project).setValue(getWorkspaceIdKey(), workspaceId)
-        }
-
-        internal suspend fun setupWorkspace(): Boolean {
-            ApplicationManager.getApplication().invokeLater {
-                statusLabel.text = "Setting up workspace..."
-                retryButton.isVisible = false
-            }
-
-            return when (val workspacesResult = sidekickService.getWorkspaces()) {
-                is ApiResponse.Success -> {
-                    val workspaces = workspacesResult.data
-                    val projectPath = project.basePath
-                    if (projectPath != null) {
-                        for (workspace in workspaces) {
-                            if (projectPath == workspace.localRepoDir) {
-                                // Cache the workspace ID
-                                setCachedWorkspaceId(workspace.id)
-                                
-                                // Set up task creation panel
-                                ApplicationManager.getApplication().invokeLater {
-                                    val taskCreationPanel = TaskCreationPanel(
-                                        sidekickService = sidekickService,
-                                        workspaceId = workspace.id,
-                                        onTaskCreated = {
-                                            showTaskList()
-                                            CoroutineScope(Dispatchers.IO).launch {
-                                                refreshTaskList()
-                                            }
-                                        },
-                                    )
-                                    contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
-                                }
-                                return true
-                            }
-                        }
-                    }
-
-                    // No matching workspace found
-                    ApplicationManager.getApplication().invokeLater {
-                        statusLabel.text = MyBundle.message("statusLabel", "No workspace set up yet")
-                        taskListModel.updateTasks(emptyList())
-                    }
-                    false
-                }
-                is ApiResponse.Error -> {
-                    val message = "Side is not running. Please run `side start`. Error: ${workspacesResult.error.error}"
-                    ApplicationManager.getApplication().invokeLater {
-                        statusLabel.text = MyBundle.message("statusLabel", message)
-                        taskListModel.updateTasks(emptyList())
-                        retryButton.isVisible = true
-                    }
-                    false
-                }
-            }
-        }
-
+        // FIXME this should take in a workspaceId parameter
         internal suspend fun refreshTaskList() {
-            val workspaceId = getCachedWorkspaceId()
-            if (workspaceId == null) {
-                ApplicationManager.getApplication().invokeLater {
-                    statusLabel.text = MyBundle.message("statusLabel", "No workspace set up yet")
-                    taskListModel.updateTasks(emptyList())
-                }
-                return
-            }
-
+            val workspaceId = getCachedWorkspaceId() ?: return
             when (val tasksResult = sidekickService.getTasks(workspaceId)) {
                 is ApiResponse.Success -> {
-                    val tasks = tasksResult.data
                     ApplicationManager.getApplication().invokeLater {
-                        if (tasks.isEmpty()) {
-                            statusLabel.text = MyBundle.message("statusLabel", "No tasks found")
+                        taskListModel.updateTasks(tasksResult.data)
+                        taskListStatusLabel.text = if (tasksResult.data.isEmpty()) {
+                            MyBundle.message("statusLabel", "No tasks found")
                         } else {
-                            statusLabel.text = MyBundle.message("statusLabel", "Tasks for workspace $workspaceId")
+                            MyBundle.message("statusLabel", "Tasks for workspace $workspaceId")
                         }
-                        taskListModel.updateTasks(tasks)
                     }
                 }
                 is ApiResponse.Error -> {
-                    val message = "Error fetching tasks: ${tasksResult.error.error}"
                     ApplicationManager.getApplication().invokeLater {
-                        statusLabel.text = MyBundle.message("statusLabel", message)
-                        taskListModel.updateTasks(emptyList())
+                        // we keep the list of tasks previously retrieved, if any
+                        taskListStatusLabel.text = MyBundle.message("statusLabel", "Error fetching tasks: ${tasksResult.error.error}")
                     }
                 }
             }
         }
 
-        private fun showTaskCreation() {
+        fun showTaskCreation() {
             cardLayout.show(contentPanel, TASK_CREATION_CARD)
         }
 
@@ -234,18 +173,15 @@ class SidekickToolWindowFactory :
             cardLayout.show(contentPanel, TASK_LIST_CARD)
         }
 
+        internal fun getTaskListModel(): TaskListModel = taskListModel
+
         internal suspend fun updateWorkspaceContent() {
             val workspaceId = getCachedWorkspaceId()
             if (workspaceId == null) {
-                // If setup fails or no matching workspace found, we're done
-                if (!setupWorkspace()) {
-                    return
-                }
+                loadingPanel?.setupWorkspace()
+                return
             }
-            // At this point we either had a cached workspace ID or setup was successful
             refreshTaskList()
         }
-
-        internal fun getTaskListModel(): TaskListModel = taskListModel
     }
 }

@@ -15,6 +15,10 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import javax.swing.JLabel
+import javax.swing.JPanel
+import com.intellij.ui.components.JBPanel
+import java.awt.CardLayout
+import java.awt.Component
 
 class SidekickToolWindowTest : LightPlatformTestCase() {
     private lateinit var toolWindowFactory: SidekickToolWindowFactory
@@ -63,9 +67,13 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
     }
 
     /**
-     * Helper method to get the status label from the tool window
+     * Helper method to get the currently visible card name from the tool window
      */
-    private fun getStatusLabel(toolWindow: SidekickToolWindowFactory.SidekickToolWindow): JLabel = toolWindow.statusLabel
+    private fun getVisibleCard(toolWindow: SidekickToolWindowFactory.SidekickToolWindow): Component {
+        // Return the currently visible card name
+        return toolWindow.contentPanel.components
+            .first { it.isVisible }
+    }
 
     /**
      * Helper method to get the task list model from the tool window
@@ -89,12 +97,8 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         val toolWindow = createToolWindowWithMockService()
         invokeUpdateWorkspaceContent(toolWindow)
 
-        // Verify the status label shows the correct message
-        val statusLabel = getStatusLabel(toolWindow)
-        assertEquals(
-            MyBundle.message("statusLabel", "No workspace set up yet"),
-            statusLabel.text,
-        )
+        // Verify the loading panel is visible
+        assertEquals(LoadingPanel.NAME, getVisibleCard(toolWindow).name)
 
         // Verify the task list is empty
         val taskListModel = getTaskListModel(toolWindow)
@@ -152,12 +156,8 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         val toolWindow = createToolWindowWithMockService()
         invokeUpdateWorkspaceContent(toolWindow)
 
-        // Verify the status label shows the correct message
-        val statusLabel = getStatusLabel(toolWindow)
-        assertEquals(
-            MyBundle.message("statusLabel", "Tasks for workspace workspace1"),
-            statusLabel.text,
-        )
+        // Verify the task list panel is visible
+        assertEquals("TASK_LIST", getVisibleCard(toolWindow).name)
 
         // Verify the task list contains the expected tasks
         val taskListModel = getTaskListModel(toolWindow)
@@ -192,12 +192,8 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         val toolWindow = createToolWindowWithMockService()
         invokeUpdateWorkspaceContent(toolWindow)
 
-        // Verify the status label shows the correct message
-        val statusLabel = getStatusLabel(toolWindow)
-        assertEquals(
-            MyBundle.message("statusLabel", "No tasks found"),
-            statusLabel.text,
-        )
+        // Verify the task list panel is visible
+        assertEquals("TASK_LIST", getVisibleCard(toolWindow).name)
 
         // Verify the task list is empty
         val taskListModel = getTaskListModel(toolWindow)
@@ -212,12 +208,8 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         val toolWindow = createToolWindowWithMockService()
         invokeUpdateWorkspaceContent(toolWindow)
 
-        // Verify the status label shows the error message
-        val statusLabel = getStatusLabel(toolWindow)
-        assertEquals(
-            MyBundle.message("statusLabel", "Side is not running. Please run `side start`. Error: Connection error"),
-            statusLabel.text,
-        )
+        // Verify the loading panel is visible
+        assertEquals("LOADING", getVisibleCard(toolWindow).name)
 
         // Verify the task list is empty
         val taskListModel = getTaskListModel(toolWindow)
@@ -251,12 +243,8 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         val toolWindow = createToolWindowWithMockService()
         invokeUpdateWorkspaceContent(toolWindow)
 
-        // Verify the status label shows the error message
-        val statusLabel = getStatusLabel(toolWindow)
-        assertEquals(
-            MyBundle.message("statusLabel", "Error fetching tasks: Task fetch error"),
-            statusLabel.text,
-        )
+        // Verify the task list panel is visible
+        assertEquals("TASK_LIST", getVisibleCard(toolWindow).name)
 
         // Verify the task list is empty
         val taskListModel = getTaskListModel(toolWindow)
