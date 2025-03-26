@@ -1,2 +1,33 @@
+mission = """
+Sidekick is a human-in-the-loop system designed to support software developers
+through GenAI automation. Sidekick should be easy for developers to set up and
+use, intuitive to understand and highly introspectable with realtime feedback
+and granular tracking. It should be able to be guided by developers using it,
+but do as much as can be done reliably without the human in the loop, before
+engaging them. The core mission of Sidekick is to make developers more
+productive as they work within large existing code bases.
+"""
+
+[edit_code]
+hints = """
+Refer to *.side.md files that describe how that area of the codebase should work.
+Always read files with that naming scheme that are located in an area that is
+relevant to the functionality you are working on. Only edit such files with express
+permission from the user, as they convey the user's intent.
+
+Write or update unit tests for all major functionality. Feel free to make class
+attributes internal instead of private to make it easier to write these unit tests.
+
+Always handle errors, e.g. by showing an error message where appropriate. For error
+handling, avoid exceptions in favor of Either or Result-like types. An example of
+this is ApiResponse, a sealed class over Success and Error. That said, sometimes
+exceptions may be necessary, eg when an error is unrecoverable. It can sometimes be
+acceptable to use exceptions when the exception is meant to never happen in
+practice, and indicates a program error, but do this sparingly.
+
+Most tests dealing with coroutines use UnconfinedTestDispatcher, so advanceUntilIdle
+should not be used typically.
+"""
+
 [[test_commands]]
 command = "./gradlew test"
