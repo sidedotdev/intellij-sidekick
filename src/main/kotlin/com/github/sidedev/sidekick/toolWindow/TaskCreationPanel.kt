@@ -25,11 +25,12 @@ import java.awt.Dimension
 import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.border.EmptyBorder
+import com.github.sidedev.sidekick.api.Task
 
 class TaskCreationPanel(
     private val sidekickService: SidekickService,
     private val workspaceId: String,
-    private val onTaskCreated: () -> Unit,
+    private val onTaskCreated: (Task) -> Unit,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JBPanel<JBPanel<*>>() {
     companion object {
@@ -155,8 +156,7 @@ class TaskCreationPanel(
                 when (val response = sidekickService.createTask(workspaceId, taskRequest)) {
                     is ApiResponse.Success -> {
                         clearForm()
-                        // TODO pass in the task to the onTaskCreated callback
-                        onTaskCreated()
+                        onTaskCreated(response.data)
                     }
                     is ApiResponse.Error -> {
                         showError(response.error.error)

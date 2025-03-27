@@ -151,11 +151,8 @@ class SidekickToolWindow(
         val taskCreationPanel = TaskCreationPanel(
             sidekickService = sidekickService,
             workspaceId = workspaceId,
-            onTaskCreated = {
-                showTaskList()
-                CoroutineScope(dispatcher).launch {
-                    refreshTaskList()
-                }
+            onTaskCreated = { task ->
+                showTaskView(task)
             },
         )
         contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)

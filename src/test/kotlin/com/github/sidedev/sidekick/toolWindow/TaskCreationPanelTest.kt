@@ -36,7 +36,7 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         taskCreationPanel = TaskCreationPanel(
             sidekickService = sidekickService,
             workspaceId = "ws_123",
-            onTaskCreated = { taskCreatedCallbackInvoked = true },
+            onTaskCreated = { _ -> taskCreatedCallbackInvoked = true },
             dispatcher = testDispatcher,
         )
     }
@@ -116,6 +116,9 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         // Then: Form is cleared
         assertEquals("", taskCreationPanel.descriptionTextArea.text)
         assertTrue(taskCreationPanel.determineRequirementsCheckbox.isSelected)
+
+        // And: Callback was invoked with the task
+        assertTrue(taskCreatedCallbackInvoked)
 
         // And: API was called
         coVerify(exactly = 1) {
