@@ -42,6 +42,9 @@ class SidekickToolWindowFactory :
         val myToolWindow = SidekickToolWindow(toolWindow, project, service, dispatcher)
         val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), null, false)
         toolWindow.contentManager.addContent(content)
+        project.basePath?.let { basePath ->
+            SidekickToolWindowManager.storeWindow(basePath, myToolWindow)
+        }
         return myToolWindow
     }
 

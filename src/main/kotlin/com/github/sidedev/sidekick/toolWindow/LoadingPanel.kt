@@ -21,6 +21,10 @@ class LoadingPanel(
     private val sidekickService: SidekickService,
     private val onWorkspaceLoaded: (String) -> Unit
 ) : JBPanel<JBPanel<*>>() {
+    companion object {
+        const val NAME: String = "LOADING"
+    }
+
     internal val statusLabel: JLabel
     private val retryButton: JButton
 
@@ -100,9 +104,5 @@ class LoadingPanel(
                 }
             }
         }
-    }
-
-    companion object {
-        const val NAME: String = "LOADING"
     }
 }

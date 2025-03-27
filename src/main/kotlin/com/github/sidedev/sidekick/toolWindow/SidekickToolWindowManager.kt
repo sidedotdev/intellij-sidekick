@@ -1,6 +1,7 @@
 package com.github.sidedev.sidekick.toolWindow
 
 import java.util.concurrent.ConcurrentHashMap
+import com.github.sidedev.sidekick.toolWindow.SidekickToolWindow
 
 /**
  * Singleton manager for SidekickToolWindow instances.
