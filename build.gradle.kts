@@ -39,6 +39,7 @@ dependencies {
     implementation(libs.ktorClientContentNegotiation)
     implementation(libs.ktorSerializationKotinxJson)
     implementation(libs.ktorClientCIO)
+    implementation(libs.ktorClientWebsockets)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
