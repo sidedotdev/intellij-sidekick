@@ -4,6 +4,8 @@ import com.github.sidedev.sidekick.MyBundle
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
@@ -42,6 +44,12 @@ class SidekickToolWindowFactory :
         val myToolWindow = SidekickToolWindow(toolWindow, project, service, dispatcher)
         val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), null, false)
         toolWindow.contentManager.addContent(content)
+
+        val titleActions = mutableListOf<AnAction>()
+        val action = ActionManager.getInstance().getAction("SidekickToolWindowActions")
+        titleActions.add(action)
+        toolWindow.setTitleActions(titleActions)
+
         project.basePath?.let { basePath ->
             SidekickToolWindowManager.storeWindow(basePath, myToolWindow)
         }

@@ -19,8 +19,12 @@
                 icon="AllIcons.General.Add"
                 text="New Task"
                 description="Create a new task">
-            <add-to-group group-id="ToolbarRunGroup" anchor="first"/>
         </action>
+
+        <group id="SidekickToolWindowActions">
+            <reference ref="sidekick.newTask"/>
+            <!--reference ref="sidekick.showTasks"/-->
+        </group>
     </actions>
 
     <applicationListeners>
