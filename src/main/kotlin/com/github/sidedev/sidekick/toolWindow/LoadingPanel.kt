@@ -21,6 +21,10 @@ class LoadingPanel(
     private val sidekickService: SidekickService,
     private val onWorkspaceLoaded: (String) -> Unit
 ) : JBPanel<JBPanel<*>>() {
+    companion object {
+        const val NAME: String = "LOADING"
+    }
+
     internal val statusLabel: JLabel
     private val retryButton: JButton
 
@@ -58,7 +62,7 @@ class LoadingPanel(
     }
 
     private fun getWorkspaceIdKey(): String {
-        return SidekickToolWindowFactory.SidekickToolWindow.WORKSPACE_ID_KEY_PREFIX + (project.basePath ?: "")
+        return SidekickToolWindow.WORKSPACE_ID_KEY_PREFIX + (project.basePath ?: "")
     }
 
     private fun setCachedWorkspaceId(workspaceId: String) {
@@ -100,9 +104,5 @@ class LoadingPanel(
                 }
             }
         }
-    }
-
-    companion object {
-        const val NAME: String = "LOADING"
     }
 }

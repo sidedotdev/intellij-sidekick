@@ -14,15 +14,19 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import javax.swing.JLabel
-import javax.swing.JPanel
-import com.intellij.ui.components.JBPanel
-import java.awt.CardLayout
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import java.awt.Component
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SidekickToolWindowTest : LightPlatformTestCase() {
     private lateinit var toolWindowFactory: SidekickToolWindowFactory
     private lateinit var mockSidekickService: SidekickService
+
+    // the unconfined test dispatcher makes tests much simpler, given we don't
+    // care about coroutine ordering etc., but just want to run coroutines to
+    // completion typically, then assert
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     override fun setUp() {
         super.setUp()
@@ -34,7 +38,7 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         toolWindowFactory = SidekickToolWindowFactory()
 
         // Clear any cached workspace ID
-        PropertiesComponent.getInstance(project).unsetValue(SidekickToolWindowFactory.SidekickToolWindow.WORKSPACE_ID_KEY_PREFIX + project.basePath)
+        PropertiesComponent.getInstance(project).unsetValue(SidekickToolWindow.WORKSPACE_ID_KEY_PREFIX + project.basePath)
     }
 
     override fun tearDown() {
@@ -44,12 +48,13 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
     /**
      * Helper method to create a SidekickToolWindow instance with our mock service
      */
-    private fun createToolWindowWithMockService(): SidekickToolWindowFactory.SidekickToolWindow {
+    private fun createToolWindowWithMockService(): SidekickToolWindow {
         // Create a new instance of SidekickToolWindow using our factory and mock service
         val sidekickToolWindow = SidekickToolWindowFactory().createSidekickToolWindow(
             project,
             mockk<ToolWindow>(relaxed = true),
             mockSidekickService,
+            dispatcher = testDispatcher,
         )
 
         // Dispatch all events to ensure UI updates are processed
@@ -61,7 +66,7 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
     /**
      * Helper method to invoke the updateWorkspaceContent method
      */
-    private suspend fun invokeUpdateWorkspaceContent(toolWindow: SidekickToolWindowFactory.SidekickToolWindow) {
+    private suspend fun invokeUpdateWorkspaceContent(toolWindow: SidekickToolWindow) {
         toolWindow.updateWorkspaceContent()
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
     }
@@ -69,7 +74,7 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
     /**
      * Helper method to get the currently visible card name from the tool window
      */
-    private fun getVisibleCard(toolWindow: SidekickToolWindowFactory.SidekickToolWindow): Component {
+    private fun getVisibleCard(toolWindow: SidekickToolWindow): Component {
         // Return the currently visible card name
         return toolWindow.contentPanel.components
             .first { it.isVisible }
@@ -78,7 +83,7 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
     /**
      * Helper method to get the task list model from the tool window
      */
-    private fun getTaskListModel(toolWindow: SidekickToolWindowFactory.SidekickToolWindow): TaskListModel = toolWindow.getTaskListModel()
+    private fun getTaskListModel(toolWindow: SidekickToolWindow): TaskListModel = toolWindow.getTaskListModel()
 
     fun testNoMatchingWorkspace() = runBlocking {
         // Mock workspaces response with no matching workspace
@@ -156,8 +161,8 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         val toolWindow = createToolWindowWithMockService()
         invokeUpdateWorkspaceContent(toolWindow)
 
-        // Verify the task list panel is visible
-        assertEquals("TASK_LIST", getVisibleCard(toolWindow).name)
+        // Verify the task creation panel is visible
+        assertEquals("TASK_CREATE", getVisibleCard(toolWindow).name)
 
         // Verify the task list contains the expected tasks
         val taskListModel = getTaskListModel(toolWindow)
@@ -193,7 +198,7 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         invokeUpdateWorkspaceContent(toolWindow)
 
         // Verify the task list panel is visible
-        assertEquals("TASK_LIST", getVisibleCard(toolWindow).name)
+        assertEquals("TASK_CREATE", getVisibleCard(toolWindow).name)
 
         // Verify the task list is empty
         val taskListModel = getTaskListModel(toolWindow)
@@ -244,7 +249,7 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         invokeUpdateWorkspaceContent(toolWindow)
 
         // Verify the task list panel is visible
-        assertEquals("TASK_LIST", getVisibleCard(toolWindow).name)
+        assertEquals("TASK_CREATE", getVisibleCard(toolWindow).name)
 
         // Verify the task list is empty
         val taskListModel = getTaskListModel(toolWindow)
