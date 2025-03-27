@@ -58,7 +58,7 @@ class LoadingPanel(
     }
 
     private fun getWorkspaceIdKey(): String {
-        return SidekickToolWindowFactory.SidekickToolWindow.WORKSPACE_ID_KEY_PREFIX + (project.basePath ?: "")
+        return SidekickToolWindow.WORKSPACE_ID_KEY_PREFIX + (project.basePath ?: "")
     }
 
     private fun setCachedWorkspaceId(workspaceId: String) {

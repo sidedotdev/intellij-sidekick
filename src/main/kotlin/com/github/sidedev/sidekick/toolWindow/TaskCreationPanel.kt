@@ -4,6 +4,7 @@ import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.TaskRequest
 import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.github.sidedev.sidekick.toolWindow.LoadingPanel.Companion
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.ActionLink
@@ -31,6 +32,14 @@ class TaskCreationPanel(
     private val onTaskCreated: () -> Unit,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JBPanel<JBPanel<*>>() {
+    companion object {
+        private const val LAST_FLOW_TYPE_KEY = "sidekick.flowType"
+        private const val DEFAULT_FLOW_TYPE = "basic_dev"
+        const val NAME = "TASK_CREATE"
+    }
+
+    override fun getName() = NAME
+
     private val buttonValues = mutableMapOf<ActionLink, String>()
 
     internal val errorLabel = JBLabel().apply {
@@ -162,11 +171,6 @@ class TaskCreationPanel(
     private fun clearForm() {
         descriptionTextArea.text = ""
         determineRequirementsCheckbox.isSelected = true
-    }
-
-    companion object {
-        private const val LAST_FLOW_TYPE_KEY = "sidekick.flowType"
-        private const val DEFAULT_FLOW_TYPE = "basic_dev"
     }
 
     private fun getLastFlowType(): String =
