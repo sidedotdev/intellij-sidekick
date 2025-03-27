@@ -13,6 +13,16 @@
         <toolWindow factoryClass="com.github.sidedev.sidekick.toolWindow.SidekickToolWindowFactory" id="Sidekick" anchor="right"/>
     </extensions>
 
+    <actions>
+        <action id="sidekick.newTask"
+                class="com.github.sidedev.sidekick.actions.NewTaskAction"
+                icon="AllIcons.General.Add"
+                text="New Task"
+                description="Create a new task">
+            <add-to-group group-id="ToolbarRunGroup" anchor="first"/>
+        </action>
+    </actions>
+
     <applicationListeners>
         <listener class="com.github.sidedev.sidekick.listeners.MyApplicationActivationListener" topic="com.intellij.openapi.application.ApplicationActivationListener"/>
     </applicationListeners>
