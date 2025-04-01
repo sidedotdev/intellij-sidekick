@@ -24,6 +24,7 @@ import java.awt.BorderLayout
 import java.awt.CardLayout
 import javax.swing.JLabel
 import javax.swing.SwingConstants
+import com.github.sidedev.sidekick.api.Task
 
 class SidekickToolWindowFactory :
     ToolWindowFactory,
@@ -70,6 +71,7 @@ class SidekickToolWindow(
     internal lateinit var contentPanel: JBPanel<JBPanel<*>>
     internal lateinit var loadingPanel: LoadingPanel
     private lateinit var taskListStatusLabel: JLabel
+    private lateinit var taskViewPanel: TaskViewPanel
 
     companion object {
         // TODO move to TaskListPanel.NAME constant
@@ -134,6 +136,22 @@ class SidekickToolWindow(
         // Add task list panel to card layout
         contentPanel.add(taskListPanel, TASK_LIST_CARD)
 
+        // Create initial task view panel with empty task
+        taskViewPanel = TaskViewPanel(
+            task = Task(
+                id = "",
+                workspaceId = "",
+                status = "",
+                agentType = "",
+                flowType = "",
+                description = "",
+                created = "",
+                updated = ""
+            ),
+            onAllTasksClick = { showTaskList() }
+        )
+        contentPanel.add(taskViewPanel, TaskViewPanel.NAME)
+
         return contentPanel
     }
 
@@ -141,11 +159,8 @@ class SidekickToolWindow(
         val taskCreationPanel = TaskCreationPanel(
             sidekickService = sidekickService,
             workspaceId = workspaceId,
-            onTaskCreated = {
-                showTaskList()
-                CoroutineScope(dispatcher).launch {
-                    refreshTaskList()
-                }
+            onTaskCreated = { task ->
+                showTaskView(task)
             },
         )
         contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
@@ -184,6 +199,16 @@ class SidekickToolWindow(
 
     fun showTaskList() {
         cardLayout.show(contentPanel, TASK_LIST_CARD)
+    }
+
+    fun showTaskView(task: Task) {
+        contentPanel.remove(taskViewPanel)
+        taskViewPanel = TaskViewPanel(
+            task = task,
+            onAllTasksClick = { showTaskList() }
+        )
+        contentPanel.add(taskViewPanel, TaskViewPanel.NAME)
+        cardLayout.show(contentPanel, TaskViewPanel.NAME)
     }
 
     internal fun getTaskListModel(): TaskListModel = taskListModel
