@@ -21,9 +21,16 @@
                 description="Create a new task">
         </action>
 
+        <action id="sidekick.showTasks"
+                class="com.github.sidedev.sidekick.actions.ShowTasksAction"
+                icon="AllIcons.Actions.ListFiles"
+                text="Active Tasks"
+                description="Show active tasks">
+        </action>
+
         <group id="SidekickToolWindowActions">
             <reference ref="sidekick.newTask"/>
-            <!--reference ref="sidekick.showTasks"/-->
+            <reference ref="sidekick.showTasks"/>
         </group>
     </actions>
 
