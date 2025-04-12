@@ -1,5 +1,7 @@
 package com.github.sidedev.sidekick.api.websocket
 
+import com.github.sidedev.sidekick.api.response.ApiError
+import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.github.sidedev.sidekick.models.*
 import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
@@ -7,6 +9,7 @@ import io.ktor.http.*
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
+import io.ktor.websocket.close
 import io.ktor.websocket.readBytes
 import io.ktor.websocket.readReason
 import io.ktor.websocket.readText
@@ -23,10 +26,16 @@ class FlowEventsSession(
     private val workspaceId: String,
     private val flowId: String,
 ) : SidekickWebSocketSession() {
+    override suspend fun send(message: String): ApiResponse<Unit, ApiError> = send_legacy(message)
+
+    override suspend fun close(code: Short, reason: String) {
+        session?.close(CloseReason(code, reason))
+        session = null
+    }
+
     private var messageHandler: (suspend (ChatMessageDelta) -> Unit)? = null
     private var errorHandler: (suspend (Throwable) -> Unit)? = null
     private var closeHandler: (suspend (code: Short, reason: String) -> Unit)? = null
-    var clientSession: WebSocketSession? = null
 
     suspend fun connect(
         onMessage: suspend (ChatMessageDelta) -> Unit,
@@ -49,8 +58,6 @@ class FlowEventsSession(
             port = Url(wsUrl).port,
             path = Url(wsUrl).encodedPath
         )
-        val flowEventsSession = this
-        clientSession = localSession
         println("right after WebSocket connected")
         CoroutineScope(dispatcher).launch {
             println("outer: WebSocket connected")

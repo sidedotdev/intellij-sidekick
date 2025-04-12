@@ -6,6 +6,7 @@ import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
+import io.ktor.websocket.CloseReason
 
 abstract class SidekickWebSocketSession {
     protected var session: DefaultClientWebSocketSession? = null
@@ -52,12 +53,18 @@ abstract class SidekickWebSocketSession {
         }
     }
 
+    abstract suspend fun send(message: String): ApiResponse<Unit, ApiError>
+
+    abstract suspend fun close(code: Short = CloseReason.Codes.NORMAL.code, reason: String = "Client closed normally")
+
+    // Default implementation for backward compatibility
     suspend fun close() {
         session?.close()
         session = null
     }
 
-    internal suspend fun send(message: String): ApiResponse<Unit, ApiError> =
+    // Keeping existing implementation temporarily for backward compatibility
+    internal suspend fun send_legacy(message: String): ApiResponse<Unit, ApiError> =
         try {
             session?.send(message)
             ApiResponse.Success(Unit)
