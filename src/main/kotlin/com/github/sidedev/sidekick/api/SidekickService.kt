@@ -3,10 +3,13 @@ package com.github.sidedev.sidekick.api
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.github.sidedev.sidekick.api.response.DeleteTaskResponse
+import com.github.sidedev.sidekick.api.websocket.FlowEventsSession
+import com.github.sidedev.sidekick.models.ChatMessageDelta
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -14,10 +17,13 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 
 class SidekickService(
     private val baseUrl: String = "http://localhost:8855/api/v1",
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -27,6 +33,11 @@ class SidekickService(
                     prettyPrint = true
                 },
             )
+        }
+        install(WebSockets) {
+            // NOTE: DO NOT REPLACE THIS WITH pingIntervalMillis THAT DOES NOT WORK!
+            // That will break tests, so just leave this line alone, keep it as-is and DO NOT REMOVE THIS COMMENT
+            pingInterval = 20_000
         }
     }
 
@@ -106,4 +117,17 @@ class SidekickService(
             method = HttpMethod.Delete,
             path = "/workspaces/$workspaceId/tasks/$taskId",
         )
+
+    suspend fun connectToFlowEvents(
+        workspaceId: String,
+        flowId: String,
+        onMessage: suspend (ChatMessageDelta) -> Unit,
+        onError: suspend (Throwable) -> Unit = {},
+        onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> }
+    ): Result<FlowEventsSession> {
+        val session = FlowEventsSession(client, baseUrl, workspaceId, flowId)
+        val conn = session.connect(onMessage, onError, onClose, dispatcher)
+        println("after session.connect")
+        return conn.map { it.await() }.map { session }
+    }
 }
