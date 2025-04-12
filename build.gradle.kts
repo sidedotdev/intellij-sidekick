@@ -39,9 +39,13 @@ dependencies {
     implementation(libs.ktorClientContentNegotiation)
     implementation(libs.ktorSerializationKotinxJson)
     implementation(libs.ktorClientCIO)
+    implementation(libs.ktorClientWebsockets)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
+    testImplementation(libs.ktorClientMock)
+    testImplementation(libs.mockWebServer)
+    testImplementation(libs.okhttp)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
