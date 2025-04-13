@@ -11,8 +11,6 @@ import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.ui.ToolbarDecorator
-import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
 import kotlinx.coroutines.CoroutineDispatcher
@@ -20,10 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.NotNull
-import java.awt.BorderLayout
 import java.awt.CardLayout
-import javax.swing.JLabel
-import javax.swing.SwingConstants
 import com.github.sidedev.sidekick.api.Task
 
 class SidekickToolWindowFactory :
@@ -70,12 +65,10 @@ class SidekickToolWindow(
     private lateinit var cardLayout: CardLayout
     internal lateinit var contentPanel: JBPanel<JBPanel<*>>
     internal lateinit var loadingPanel: LoadingPanel
-    private lateinit var taskListStatusLabel: JLabel
+    private lateinit var taskListPanel: TaskListPanel
     private lateinit var taskViewPanel: TaskViewPanel
 
     companion object {
-        // TODO move to TaskListPanel.NAME constant
-        private const val TASK_LIST_CARD = "TASK_LIST"
         // TODO move to TaskCreationPanel.NAME constant
         private const val TASK_CREATION_CARD = "TASK_CREATION"
         internal const val WORKSPACE_ID_KEY_PREFIX = "sidekick.workspace.id."
@@ -94,47 +87,15 @@ class SidekickToolWindow(
             sidekickService = sidekickService,
             onWorkspaceLoaded = { workspaceId ->
                 ApplicationManager.getApplication().invokeLater {
-                    CoroutineScope(dispatcher).launch {
-                        refreshTaskList()
-                    }
                     setupTaskPanels(workspaceId)
                     // TODO if there is a single active task, show the TaskViewPanel.NAME, if multiple active, show TaskListPanel.NAME, otherwise show TaskCreationPanel.NAME
-                    //cardLayout.show(contentPanel, TASK_LIST_CARD)
+                    //cardLayout.show(contentPanel, TaskListPanel.NAME)
                     cardLayout.show(contentPanel, TASK_CREATION_CARD)
                 }
             }
         )
         contentPanel.add(loadingPanel, LoadingPanel.NAME)
         cardLayout.show(contentPanel, LoadingPanel.NAME)
-
-        // Create task list panel
-        val taskListPanel = JBPanel<JBPanel<*>>().apply {
-            layout = BorderLayout()
-            name = "TASK_LIST"
-        }
-
-        // Add status label at the top
-        taskListStatusLabel = JLabel().apply {
-            name = "taskListStatusLabel"
-            horizontalAlignment = SwingConstants.CENTER
-        }
-        taskListPanel.add(taskListStatusLabel, BorderLayout.NORTH)
-
-        // Task list in a scroll pane
-        val taskList = JBList(taskListModel).apply {
-            cellRenderer = TaskCellRenderer()
-        }
-
-        // Add toolbar with create task button
-        val taskListWithToolbar = ToolbarDecorator
-            .createDecorator(taskList)
-            .setAddAction { _ -> showTaskCreation() }
-            .createPanel()
-
-        taskListPanel.add(taskListWithToolbar, BorderLayout.CENTER)
-
-        // Add task list panel to card layout
-        contentPanel.add(taskListPanel, TASK_LIST_CARD)
 
         // Create initial task view panel with empty task
         taskViewPanel = TaskViewPanel(
@@ -164,32 +125,32 @@ class SidekickToolWindow(
             },
         )
         contentPanel.add(taskCreationPanel, TASK_CREATION_CARD)
+
+        taskListPanel = TaskListPanel(
+            workspaceId = workspaceId,
+            taskListModel = taskListModel,
+            sidekickService = sidekickService,
+            onTaskSelected = { task ->
+                taskViewPanel = TaskViewPanel(
+                    task = task,
+                    onAllTasksClick = { showTaskList() }
+                )
+                contentPanel.add(taskViewPanel, TaskViewPanel.NAME)
+                cardLayout.show(contentPanel, TaskViewPanel.NAME)
+            },
+            onNewTask = { showTaskCreation() }
+        )
+        contentPanel.add(taskListPanel, TaskListPanel.NAME)
     }
 
     private fun getCachedWorkspaceId(): String? {
         return PropertiesComponent.getInstance(project).getValue(WORKSPACE_ID_KEY_PREFIX + (project.basePath ?: ""))
     }
 
-    // FIXME this should take in a workspaceId parameter
     internal suspend fun refreshTaskList() {
-        val workspaceId = getCachedWorkspaceId() ?: return
-        when (val tasksResult = sidekickService.getTasks(workspaceId)) {
-            is ApiResponse.Success -> {
-                ApplicationManager.getApplication().invokeLater {
-                    taskListModel.updateTasks(tasksResult.data)
-                    taskListStatusLabel.text = if (tasksResult.data.isEmpty()) {
-                        MyBundle.message("statusLabel", "No tasks found")
-                    } else {
-                        MyBundle.message("statusLabel", "Tasks for workspace $workspaceId")
-                    }
-                }
-            }
-            is ApiResponse.Error -> {
-                ApplicationManager.getApplication().invokeLater {
-                    // we keep the list of tasks previously retrieved, if any
-                    taskListStatusLabel.text = MyBundle.message("statusLabel", "Error fetching tasks: ${tasksResult.error.error}")
-                }
-            }
+        val workspaceId = getCachedWorkspaceId()
+        if (workspaceId != null) {
+            taskListPanel.refreshTaskList()
         }
     }
 
@@ -198,7 +159,12 @@ class SidekickToolWindow(
     }
 
     fun showTaskList() {
-        cardLayout.show(contentPanel, TASK_LIST_CARD)
+        val workspaceId = getCachedWorkspaceId()
+        if (workspaceId != null) {
+            cardLayout.show(contentPanel, TaskListPanel.NAME)
+        } else {
+            cardLayout.show(contentPanel, LoadingPanel.NAME)
+        }
     }
 
     fun showTaskView(task: Task) {
@@ -213,6 +179,7 @@ class SidekickToolWindow(
 
     internal fun getTaskListModel(): TaskListModel = taskListModel
 
+    // FIXME try to remove this function, we shouldn't need it in tests, which is the only place it's used today
     internal suspend fun updateWorkspaceContent() {
         val workspaceId = getCachedWorkspaceId()
         if (workspaceId == null) {
