@@ -1,7 +1,9 @@
 package com.github.sidedev.sidekick.api.websocket
 
 import com.github.sidedev.sidekick.api.SidekickService
-import com.github.sidedev.sidekick.models.*
+import com.github.sidedev.sidekick.models.ChatMessageDelta
+import com.github.sidedev.sidekick.models.ChatRole
+import com.github.sidedev.sidekick.models.Usage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
 import kotlinx.serialization.encodeToString
@@ -111,7 +113,7 @@ class FlowEventsSessionTest {
          */
 
         // Clean up
-        flowEventsSession.close()
+        flowEventsSession.close(1000, "Test completed")
     }
 
     @Test
@@ -150,7 +152,7 @@ class FlowEventsSessionTest {
         assertEquals("Some close reason", closeReason)
 
         // Clean up
-        session.close()
+        session.close(1000, "Test completed")
     }
 
     @Test

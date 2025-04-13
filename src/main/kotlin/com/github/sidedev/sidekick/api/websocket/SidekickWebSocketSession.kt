@@ -15,60 +15,7 @@ abstract class SidekickWebSocketSession {
         prettyPrint = true
     }
 
-    protected suspend fun consume(
-        clientSession: DefaultClientWebSocketSession,
-        onMessage: suspend (String) -> Unit,
-        onError: suspend (Throwable) -> Unit,
-        onClose: suspend (code: Int, reason: String) -> Unit
-    ) {
-        session = clientSession
-        println("consuming websocket... ")
-        try {
-            //for (frame in clientSession.incoming) {
-            //    println("V2 got frame... " + frame.toString());
-            //}
-            clientSession.incoming.consumeAsFlow()
-                //.map {
-                //    println("got frame... " + it.toString());
-                //}
-                .filterIsInstance<Frame.Text>()
-                .onEach { println("read text + on message... "); onMessage(it
-                    .readText()) }
-                .catch { e ->
-                    println("consume error 2")
-                    println(e)
-                    onError(e)
-                }
-            println("done consuming websocket... ")
-        } catch (e: Exception) {
-            println("error consuming websocket... ")
-            println(e)
-            onError(e)
-        } finally {
-            val closeReason = session?.closeReason?.await()
-            println("closing: " + (closeReason?.toString() ?: "unknown"))
-            onClose(closeReason?.code?.toInt() ?: -1, closeReason?.message ?: "Unknown")
-            println("onclose ran")
-            session = null
-        }
-    }
-
     abstract suspend fun send(message: String): ApiResponse<Unit, ApiError>
 
     abstract suspend fun close(code: Short = CloseReason.Codes.NORMAL.code, reason: String = "Client closed normally")
-
-    // Default implementation for backward compatibility
-    suspend fun close() {
-        session?.close()
-        session = null
-    }
-
-    // Keeping existing implementation temporarily for backward compatibility
-    internal suspend fun send_legacy(message: String): ApiResponse<Unit, ApiError> =
-        try {
-            session?.send(message)
-            ApiResponse.Success(Unit)
-        } catch (e: Exception) {
-            ApiResponse.Error(ApiError(e.message ?: "Failed to send message"))
-        }
 }
