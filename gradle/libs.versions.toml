@@ -4,6 +4,7 @@ junit = "4.13.2"
 kotlinx = "1.8.0"
 ktor = "2.3.5"
 mockk = "1.13.8"
+okhttp = "4.10.0"
 
 # plugins
 changelog = "2.2.1"
@@ -19,7 +20,11 @@ ktorClientCore = { group = "io.ktor", name = "ktor-client-core", version.ref = "
 ktorClientCIO = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
 ktorClientContentNegotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
 ktorSerializationKotinxJson = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktorClientWebsockets = { group = "io.ktor", name = "ktor-client-websockets", version.ref = "ktor" }
+ktorClientMock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+mockWebServer = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
 [plugins]
 changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }

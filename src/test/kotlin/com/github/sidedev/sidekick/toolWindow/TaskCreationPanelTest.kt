@@ -13,7 +13,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskCreationPanelTest : BasePlatformTestCase() {
@@ -28,7 +27,6 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
 
     override fun setUp() {
         super.setUp()
-        Dispatchers.setMain(testDispatcher)
 
         sidekickService = mockk()
         taskCreatedCallbackInvoked = false
@@ -46,7 +44,7 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         Dispatchers.resetMain()
     }
 
-    fun testEmptyDescriptionShowsError() = runTest {
+    fun testEmptyDescriptionShowsError() = runTest(testDispatcher) {
         // When: Click create button without entering description
         taskCreationPanel.createButton.doClick()
 
@@ -63,7 +61,7 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         assertFalse(taskCreatedCallbackInvoked)
     }
 
-    fun testApiErrorShowsErrorMessage() = runTest {
+    fun testApiErrorShowsErrorMessage() = runTest(testDispatcher) {
         // Given: Mock service that will return error
         coEvery {
             sidekickService.createTask(any(), any())
@@ -86,7 +84,7 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         assertFalse(taskCreatedCallbackInvoked)
     }
 
-    fun testCreateTaskClearsFormWithoutApiCall() = runTest {
+    fun testCreateTaskClearsFormWithoutApiCall() = runTest(testDispatcher) {
         val task = Task(
             id = "1",
             description = "test",
