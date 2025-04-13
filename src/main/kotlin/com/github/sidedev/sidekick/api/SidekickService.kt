@@ -3,8 +3,10 @@ package com.github.sidedev.sidekick.api
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.github.sidedev.sidekick.api.response.DeleteTaskResponse
+import com.github.sidedev.sidekick.api.websocket.FlowActionSession
 import com.github.sidedev.sidekick.api.websocket.FlowEventsSession
 import com.github.sidedev.sidekick.models.ChatMessageDelta
+import com.github.sidedev.sidekick.models.FlowAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.logger
 import io.ktor.client.HttpClient
@@ -129,6 +131,25 @@ class SidekickService(
         onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> },
     ): Result<FlowEventsSession> {
         val session = FlowEventsSession(
+            client = client,
+            baseUrl = baseUrl,
+            workspaceId = workspaceId,
+            flowId = flowId,
+            dispatcher = dispatcher,
+            logger = logger,
+        )
+        val conn = session.connect(onMessage, onError, onClose)
+        return runCatching { conn.await() }.map { session }
+    }
+
+    suspend fun connectToFlowActions(
+        workspaceId: String,
+        flowId: String,
+        onMessage: suspend (FlowAction) -> Unit,
+        onError: suspend (Throwable) -> Unit = {},
+        onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> },
+    ): Result<FlowActionSession> {
+        val session = FlowActionSession(
             client = client,
             baseUrl = baseUrl,
             workspaceId = workspaceId,

@@ -45,7 +45,6 @@ class FlowEventsSession(
         onError: suspend (Throwable) -> Unit,
         onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> }
     ): Deferred<Unit> {
-        println("FlowEventsSession connect called, delegating to generic connect<ChatMessageDelta>.")
         // Call the generic connect method from the base class, specifying the expected message type
         return super.connectGeneric<ChatMessageDelta>(
             onMessage = onMessage,

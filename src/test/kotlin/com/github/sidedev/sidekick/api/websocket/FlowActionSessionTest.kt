@@ -1,16 +1,17 @@
 package com.github.sidedev.sidekick.api.websocket
 
 import com.github.sidedev.sidekick.api.SidekickService
-import com.github.sidedev.sidekick.models.ChatMessageDelta
-import com.github.sidedev.sidekick.models.ChatRole
-import com.github.sidedev.sidekick.models.Usage
+import com.github.sidedev.sidekick.models.ActionStatus
+import com.github.sidedev.sidekick.models.FlowAction
 import com.intellij.openapi.diagnostic.Logger
 import io.mockk.mockk
 import io.mockk.every
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
+import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.WebSocket
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -25,7 +26,7 @@ import org.junit.Test
 import kotlin.concurrent.thread
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class FlowEventsSessionTest {
+class FlowActionSessionTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var mockWebServer: MockWebServer
     private lateinit var sidekickService: SidekickService
@@ -50,22 +51,6 @@ class FlowEventsSessionTest {
             logger = mockLogger,
         )
 
-        // don't log debug/info during tests normally
-        /*
-        every { mockLogger.debug(any<String>()) } answers {
-            println("[DEBUG]: ${invocation.args}")
-        }
-        every { mockLogger.debug(any<String>(), any<Throwable>()) } answers {
-            println("[DEBUG]: ${invocation.args}")
-        }
-        every { mockLogger.info(any<String>()) } answers {
-            println("[INFO]: ${invocation.args}")
-        }
-        every { mockLogger.info(any<String>(), any<Throwable>()) } answers {
-            println("[INFO]: ${invocation.args}")
-        }
-        */
-
         every { mockLogger.warn(any<String>(), any<Throwable>()) } answers {
             println("[WARN]: ${invocation.args}")
         }
@@ -75,17 +60,14 @@ class FlowEventsSessionTest {
         every { mockLogger.error(any<String>(), any<Throwable>()) } answers {
             println("[ERROR]: ${invocation.args}")
         }
-
     }
 
     @After
     fun tearDown() {
-        // ending the test will free this up anyway, so no need to wait for graceful shutdown
         thread(isDaemon = true) {
             try {
                 mockWebServer.shutdown()
             } catch (e: Throwable) {
-                // no need to fail tests if shutdown fails
                 println("Warning: mock web server shutdown failed: $e")
             }
         }
@@ -95,23 +77,32 @@ class FlowEventsSessionTest {
     fun testSessionConnectionAndMessageHandling() = runTest(testDispatcher) {
         // Given: A test message and WebSocket upgrade response
         mockWebServer.enqueue(MockResponse().withWebSocketUpgrade(serverListener))
-        val testMessage = ChatMessageDelta(
-            role = ChatRole.ASSISTANT,
-            content = "Test message",
-            toolCalls = emptyList(),
-            usage = Usage(inputTokens = 10, outputTokens = 20),
+        val now = Clock.System.now()
+        val testMessage = FlowAction(
+            id = "test-action-id",
+            flowId = "test-flow",
+            workspaceId = "test-workspace",
+            created = now,
+            updated = now,
+            subflow = "test-subflow",
+            subflowDescription = "Test subflow description",
+            actionType = "test-action",
+            actionParams = mapOf("key" to JsonPrimitive("value")),
+            actionStatus = ActionStatus.STARTED,
+            actionResult = "Test result",
+            isHumanAction = false
         )
 
         // When: Connect to WebSocket
-        val flowEventsSession = sidekickService
-            .connectToFlowEvents(
+        val flowActionSession = sidekickService
+            .connectToFlowActions(
                 workspaceId = "test-workspace",
                 flowId = "test-flow",
                 onMessage = { messageReceived = true },
                 onError = { errorOccurred = true },
                 onClose = { _, _ -> connectionClosed = true },
             ).getOrThrow()
-        flowEventsSession.send("doesn't matter, mock web server doesn't care")
+        flowActionSession.send("doesn't matter, mock web server doesn't care")
 
         // Then: Connection is successful
         assertFalse(errorOccurred)
@@ -129,7 +120,7 @@ class FlowEventsSessionTest {
         assertTrue(messageReceived)
 
         // Clean up
-        flowEventsSession.close(1000, "Test completed")
+        flowActionSession.close(1000, "Test completed")
     }
 
     @Test
@@ -143,7 +134,7 @@ class FlowEventsSessionTest {
 
         // When: Connect to WebSocket with error handler
         val session = sidekickService
-            .connectToFlowEvents(
+            .connectToFlowActions(
                 workspaceId = "test-workspace",
                 flowId = "test-flow",
                 onMessage = {},
@@ -183,12 +174,11 @@ class FlowEventsSessionTest {
         )
 
         // When: Try to connect and handle error
-        val sessionResult = sidekickService.connectToFlowEvents(
+        val sessionResult = sidekickService.connectToFlowActions(
             workspaceId = "test-workspace",
             flowId = "test-flow",
-            onMessage = {},
-            onError = {},
-            onClose = { _, _ -> },
+            onMessage = { },
+            onError = { },
         )
 
         // Then: Connection fails with error
@@ -196,13 +186,6 @@ class FlowEventsSessionTest {
     }
 
     private fun waitForMessageProcessing() {
-        // while we can check server.queueSize(), that's not good enough.
-        // we don't have a great way to check if messages queued to be sent
-        // from the server have been actually sent yet for code managed outside
-        // the coroutine scope, so we use a hacky sleep instead (note: delay
-        // won't work here, since we need another thread to make progress and
-        // delays are instant in tests). alternatively, we could wait until the
-        // asserted value becomes true
         Thread.sleep(200)
     }
 }
