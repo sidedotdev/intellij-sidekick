@@ -4,12 +4,13 @@ import com.github.sidedev.sidekick.toolWindow.SidekickToolWindowManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.project.DumbAware
 
 class NewTaskAction : AnAction(
     "New Task",
     "Create a new task in Sidekick",
     AllIcons.General.Add
-) {
+), DumbAware {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val projectBasePath = project.basePath ?: return
