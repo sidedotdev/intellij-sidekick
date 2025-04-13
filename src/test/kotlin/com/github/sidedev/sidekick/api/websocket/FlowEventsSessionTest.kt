@@ -12,13 +12,11 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
-
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FlowEventsSessionTest {
@@ -31,7 +29,6 @@ class FlowEventsSessionTest {
     private var messageReceived = false
     private var errorOccurred = false
     private var connectionClosed = false
-
 
     @Before
     fun setUp() {
@@ -61,17 +58,28 @@ class FlowEventsSessionTest {
             role = ChatRole.ASSISTANT,
             content = "Test message",
             toolCalls = emptyList(),
-            usage = Usage(inputTokens = 10, outputTokens = 20)
+            usage = Usage(inputTokens = 10, outputTokens = 20),
         )
 
         // When: Connect to WebSocket
-        val flowEventsSession = sidekickService.connectToFlowEvents(
-            workspaceId = "test-workspace",
-            flowId = "test-flow",
-            onMessage = { println("got onmessage"); messageReceived = true },
-            onError = { println("got error"); errorOccurred = true },
-            onClose = { _, _ -> println("got close"); connectionClosed = true }
-        ).getOrThrow()
+        val flowEventsSession = sidekickService
+            .connectToFlowEvents(
+                workspaceId = "test-workspace",
+                flowId = "test-flow",
+                onMessage = {
+                    println("got onmessage")
+                    messageReceived = true
+                },
+                onError = {
+                    println("got error")
+                    errorOccurred = true
+                },
+                onClose = { _, _ ->
+                    println("got close")
+                    connectionClosed = true
+                },
+                dispatcher = testDispatcher,
+            ).getOrThrow()
         println("after connect to flow events")
         flowEventsSession.send("doesn't matter, mock web server doesn't care")
 
@@ -116,13 +124,18 @@ class FlowEventsSessionTest {
         mockWebServer.enqueue(MockResponse().withWebSocketUpgrade(serverListener))
 
         // When: Connect to WebSocket with error handler
-        val session = sidekickService.connectToFlowEvents(
-            workspaceId = "test-workspace",
-            flowId = "test-flow",
-            onMessage = {},
-            onError = {},
-            onClose = { code, reason -> closeCode = code; closeReason = reason }
-        ).getOrThrow()
+        val session = sidekickService
+            .connectToFlowEvents(
+                workspaceId = "test-workspace",
+                flowId = "test-flow",
+                onMessage = {},
+                onError = {},
+                onClose = { code, reason ->
+                    closeCode = code
+                    closeReason = reason
+                },
+                dispatcher = testDispatcher,
+            ).getOrThrow()
 
         // Then: Connection is successful initially
         assertNull(closeReason)
@@ -143,9 +156,11 @@ class FlowEventsSessionTest {
     @Test
     fun testConnectionFailure() = runTest(testDispatcher) {
         // Given: A failing WebSocket upgrade response
-        mockWebServer.enqueue(MockResponse()
-            .setResponseCode(500)
-            .setBody("Internal Server Error"))
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(500)
+                .setBody("Internal Server Error"),
+        )
 
         // When: Try to connect and handle error
         val sessionResult = sidekickService.connectToFlowEvents(
@@ -153,7 +168,8 @@ class FlowEventsSessionTest {
             flowId = "test-flow",
             onMessage = {},
             onError = {},
-            onClose = { _, _ -> }
+            onClose = { _, _ -> },
+            dispatcher = testDispatcher,
         )
 
         // Then: Connection fails with error

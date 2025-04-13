@@ -123,11 +123,12 @@ class SidekickService(
         flowId: String,
         onMessage: suspend (ChatMessageDelta) -> Unit,
         onError: suspend (Throwable) -> Unit = {},
-        onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> }
+        onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> },
+        dispatcher: CoroutineDispatcher = Dispatchers.Default,
     ): Result<FlowEventsSession> {
-        val session = FlowEventsSession(client, baseUrl, workspaceId, flowId)
-        val conn = session.connect(onMessage, onError, onClose, dispatcher)
+        val session = FlowEventsSession(client, baseUrl, workspaceId, flowId, dispatcher)
+        val conn = session.connect(onMessage, onError, onClose)
         println("after session.connect")
-        return conn.map { it.await() }.map { session }
+        return runCatching { conn.await() }.map { session }
     }
 }
