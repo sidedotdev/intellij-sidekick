@@ -5,6 +5,8 @@ import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.github.sidedev.sidekick.api.response.DeleteTaskResponse
 import com.github.sidedev.sidekick.api.websocket.FlowEventsSession
 import com.github.sidedev.sidekick.models.ChatMessageDelta
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -24,6 +26,7 @@ import kotlinx.serialization.json.Json
 class SidekickService(
     private val baseUrl: String = "http://localhost:8855/api/v1",
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val logger: Logger = logger<SidekickService>(),
 ) {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
@@ -124,11 +127,16 @@ class SidekickService(
         onMessage: suspend (ChatMessageDelta) -> Unit,
         onError: suspend (Throwable) -> Unit = {},
         onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> },
-        dispatcher: CoroutineDispatcher = Dispatchers.Default,
     ): Result<FlowEventsSession> {
-        val session = FlowEventsSession(client, baseUrl, workspaceId, flowId, dispatcher)
+        val session = FlowEventsSession(
+            client = client,
+            baseUrl = baseUrl,
+            workspaceId = workspaceId,
+            flowId = flowId,
+            dispatcher = dispatcher,
+            logger = logger,
+        )
         val conn = session.connect(onMessage, onError, onClose)
-        println("after session.connect")
         return runCatching { conn.await() }.map { session }
     }
 }

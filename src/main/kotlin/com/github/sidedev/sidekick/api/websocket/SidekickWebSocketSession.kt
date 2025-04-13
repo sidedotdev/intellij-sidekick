@@ -2,6 +2,8 @@ package com.github.sidedev.sidekick.api.websocket
 
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.logger
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.webSocket
@@ -34,9 +36,9 @@ import kotlin.reflect.typeOf
  */
 abstract class SidekickWebSocketSession(
     protected val client: HttpClient,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default // Allow injecting dispatcher for testing
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    protected val logger: Logger = logger<SidekickWebSocketSession>(),
 ) {
-
     // Shared JSON configuration
     protected open val json: Json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
@@ -71,7 +73,7 @@ abstract class SidekickWebSocketSession(
         // Prevent multiple concurrent connection attempts
         if (readerJob?.isActive == true || webSocketSession?.isActive == true) {
             val errorMessage = "WebSocket session is already active or connection attempt in progress."
-            println(errorMessage)
+            logger.error(errorMessage)
             return CompletableDeferred(Unit).apply { completeExceptionally(IllegalStateException(errorMessage)) }
         }
 
@@ -79,7 +81,7 @@ abstract class SidekickWebSocketSession(
         val wsUrl = buildWsUrl() // Get URL from subclass
         val serializer = json.serializersModule.serializer<T>() // Get the correct serializer
 
-        println("Attempting WebSocket connection to: $wsUrl")
+        logger.debug("Attempting WebSocket connection to: $wsUrl")
         // Launch the connection and reader logic within the session's scope
         readerJob = sessionScope.launch {
             try {
@@ -91,7 +93,8 @@ abstract class SidekickWebSocketSession(
                     path = Url(wsUrl).encodedPath
                 ) { // 'this' is DefaultClientWebSocketSession
                     webSocketSession = this // Store the active session handle
-                    println("WebSocket connected successfully. Session Job: ${this.coroutineContext[Job]}")
+                    logger.info("WebSocket connected successfully")
+                    logger.debug("Session Job: ${this.coroutineContext[Job]}")
                     connectionDeferred.complete(Unit) // Signal that connection is established
 
                     // Start consuming incoming messages using the generic helper
@@ -100,7 +103,7 @@ abstract class SidekickWebSocketSession(
             } catch (e: Exception) {
                 // Handle exceptions during connection setup or the webSocket block itself
                 if (e is CancellationException) {
-                    println("Connection attempt cancelled.")
+                    logger.debug("Connection attempt cancelled", e)
                     // If cancelled before connectionDeferred completes, signal failure and call onClose
                     if (!connectionDeferred.isCompleted) {
                         connectionDeferred.completeExceptionally(e)
@@ -109,7 +112,7 @@ abstract class SidekickWebSocketSession(
                     }
                     // If connection was established, consumeMessagesGeneric's finally/catch handles onClose
                 } else {
-                    println("WebSocket connection failed: $e")
+                    logger.error("WebSocket connection failed", e)
                     onError(e) // Invoke the provided error handler
                     if (!connectionDeferred.isCompleted) {
                         connectionDeferred.completeExceptionally(e) // Signal failure if not already connected
@@ -118,7 +121,7 @@ abstract class SidekickWebSocketSession(
                 webSocketSession = null // Ensure session handle is cleared on error
             } finally {
                 // This block executes after the webSocket session ends (normally, via error, or cancellation)
-                println("WebSocket session coroutine cleanup.")
+                logger.debug("WebSocket session coroutine cleanup")
                 webSocketSession = null // Ensure reference is cleared
                 // onClose should have been reliably called by consumeMessagesGeneric or catch blocks
             }
@@ -142,7 +145,7 @@ abstract class SidekickWebSocketSession(
             // Listen indefinitely for incoming frames
             for (frame in session.incoming) {
                 if (!session.isActive) { // Extra check for safety
-                    println("Session became inactive during frame processing.")
+                    logger.debug("Session became inactive during frame processing")
                     break
                 }
                 when (frame) {
@@ -154,13 +157,13 @@ abstract class SidekickWebSocketSession(
                             val message = json.decodeFromString(serializer, text)
                             onMessage(message) // Invoke the message handler
                         } catch (e: Exception) {
-                            println("Error processing message type ${typeOf<T>()}: $e. Payload: '$text'")
+                            logger.error("Error processing message type ${typeOf<T>()}: Payload: '$text'", e)
                             onError(e) // Invoke error handler for processing issues
                         }
                     }
                     is Frame.Close -> {
                         val reason = frame.readReason() ?: CloseReason(CLOSE_CODE_NO_STATUS_RCVD, "No close reason provided")
-                        println("Received close frame: Code=${reason.code}, Reason='${reason.message}'")
+                        logger.info("Received close frame: Code=${reason.code}, Reason='${reason.message}'")
                         onClose(reason.code, reason.message) // Invoke close handler
                         webSocketSession = null // Clear session reference
                         return // Exit the consuming loop
@@ -170,26 +173,26 @@ abstract class SidekickWebSocketSession(
                         session.send(Frame.Pong(frame.buffer))
                     }
                     // Potentially handle Frame.Binary or other types
-                    else -> println("Received unhandled frame type: ${frame.frameType.name}")
+                    else -> logger.debug("Received unhandled frame type: ${frame.frameType.name}")
                 }
             }
             // Loop exited normally - typically means the server closed the connection without sending a Close frame.
-            println("Incoming channel closed normally (server likely disconnected).")
+            logger.info("Incoming channel closed normally (server likely disconnected)")
             onClose(CloseReason.Codes.NORMAL.code, "Incoming channel closed normally")
         } catch (e: CancellationException) {
             // This occurs if the sessionScope or readerJob is cancelled (e.g., by calling close())
-            println("Consume loop cancelled: $e")
+            logger.debug("Consume loop cancelled", e)
             onClose(CloseReason.Codes.GOING_AWAY.code, "Connection cancelled by client")
             throw e // Re-throw cancellation to ensure coroutine stops fully
         } catch (e: Exception) {
             // Catch unexpected errors during the consume loop
-            println("Error during consume loop: $e")
+            logger.error("Error during consume loop", e)
             onError(e)
             // Report an internal error close reason
             onClose(CloseReason.Codes.INTERNAL_ERROR.code, "Consume loop error: ${e.message}")
         } finally {
             // Final cleanup actions after the consume loop exits
-            println("Exiting consume loop.")
+            logger.debug("Exiting consume loop")
             webSocketSession = null // Ensure session reference is cleared
         }
     }
@@ -206,14 +209,14 @@ abstract class SidekickWebSocketSession(
                 session.send(Frame.Text(message))
                 ApiResponse.Success(Unit) // Indicate success
             } catch (e: Exception) {
-                println("Error sending message: $e")
+                logger.error("Error sending message", e)
                 // Consider invoking onError handler as well, depending on desired behavior
                 // onError(e)
                 ApiResponse.Error(ApiError("Failed to send message: ${e.message}"))
             }
         } else {
             val errorMsg = "Cannot send, WebSocket session is not active."
-            println(errorMsg)
+            logger.error(errorMsg)
             ApiResponse.Error(ApiError(errorMsg))
         }
     }
@@ -222,11 +225,11 @@ abstract class SidekickWebSocketSession(
      * Gracefully closes the WebSocket connection and cleans up associated resources (scope, jobs).
      */
     open suspend fun close(code: Short = CloseReason.Codes.NORMAL.code, reason: String = "Client closed normally") {
-        println("Close called on Session. Code=$code, Reason='$reason'.")
+        logger.info("Close called on Session. Code=$code, Reason='$reason'")
 
         // Prevent closing logic from running multiple times
         if (!sessionScope.isActive) {
-            println("Close called, but session scope is already inactive.")
+            logger.debug("Close called, but session scope is already inactive")
             return
         }
 
@@ -236,23 +239,23 @@ abstract class SidekickWebSocketSession(
         webSocketSession = null
         if (session?.isActive == true) {
             try {
-                println("Requesting Ktor session close...")
+                logger.debug("Requesting Ktor session close...")
                 session.close(CloseReason(code, reason))
-                println("Ktor session close requested.")
+                logger.debug("Ktor session close requested")
             } catch (e: Exception) {
                 // Log error during close, but continue cleanup. Scope cancellation handles reader job.
-                println("Exception during explicit Ktor session close: $e")
+                logger.error("Exception during explicit Ktor session close", e)
             }
         } else {
-            println("Ktor session was already null or inactive when close was called.")
+            logger.debug("Ktor session was already null or inactive when close was called")
         }
 
 
         // 2. Cancel the session's CoroutineScope. This cancels the readerJob and any other
         // potential jobs launched within this scope. Use a specific exception message.
-        println("Cancelling session scope...")
+        logger.debug("Cancelling session scope...")
         sessionScope.cancel(CancellationException("Session closed via close() call: $reason"))
-        println("Session scope cancellation requested.")
+        logger.debug("Session scope cancellation requested")
 
         // Optional: Wait for cancellation completion if needed, though usually not necessary
         // try { sessionScope.coroutineContext[Job]?.join() } catch (e: Exception) { /* ignore */ }

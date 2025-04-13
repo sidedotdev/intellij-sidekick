@@ -1,6 +1,8 @@
 package com.github.sidedev.sidekick.api.websocket
 
 import com.github.sidedev.sidekick.models.ChatMessageDelta // Specific model import
+import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.diagnostic.Logger
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
@@ -15,8 +17,9 @@ class FlowEventsSession(
     private val baseUrl: String, // Base URL for the API endpoint
     private val workspaceId: String, // Specific identifiers for the endpoint
     private val flowId: String,
-    dispatcher: CoroutineDispatcher = Dispatchers.Default // Optional dispatcher for scope
-) : SidekickWebSocketSession(client, dispatcher) { // Pass required params to base
+    dispatcher: CoroutineDispatcher = Dispatchers.Default, // Optional dispatcher for scope
+    logger: Logger = logger<FlowEventsSession>(),
+) : SidekickWebSocketSession(client, dispatcher, logger) { // Pass required params to base
 
     /**
      * Constructs the specific WebSocket URL for Flow Events.

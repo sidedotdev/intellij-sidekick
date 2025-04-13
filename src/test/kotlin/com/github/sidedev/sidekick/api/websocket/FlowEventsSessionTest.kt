@@ -4,6 +4,9 @@ import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.models.ChatMessageDelta
 import com.github.sidedev.sidekick.models.ChatRole
 import com.github.sidedev.sidekick.models.Usage
+import com.intellij.openapi.diagnostic.Logger
+import io.mockk.mockk
+import io.mockk.every
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
 import kotlinx.serialization.encodeToString
@@ -19,11 +22,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
+import kotlin.concurrent.thread
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FlowEventsSessionTest {
-    // tests run concurrent coroutines, so we need to use the standard test
-    // dispatcher
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var mockWebServer: MockWebServer
     private lateinit var sidekickService: SidekickService
@@ -37,19 +39,56 @@ class FlowEventsSessionTest {
         mockWebServer = MockWebServer()
         mockWebServer.start()
 
-        sidekickService = SidekickService(
-            baseUrl = mockWebServer.url("/").toString(),
-            dispatcher = testDispatcher,
-        )
-
         messageReceived = false
         errorOccurred = false
         connectionClosed = false
+
+        val mockLogger = mockk<Logger>(relaxed = true)
+        sidekickService = SidekickService(
+            baseUrl = mockWebServer.url("/").toString(),
+            dispatcher = testDispatcher,
+            logger = mockLogger,
+        )
+
+        // don't log debug/info during tests normally
+        /*
+        every { mockLogger.debug(any<String>()) } answers {
+            println("[DEBUG]: ${invocation.args}")
+        }
+        every { mockLogger.debug(any<String>(), any<Throwable>()) } answers {
+            println("[DEBUG]: ${invocation.args}")
+        }
+        every { mockLogger.info(any<String>()) } answers {
+            println("[INFO]: ${invocation.args}")
+        }
+        every { mockLogger.info(any<String>(), any<Throwable>()) } answers {
+            println("[INFO]: ${invocation.args}")
+        }
+        */
+
+        every { mockLogger.warn(any<String>(), any<Throwable>()) } answers {
+            println("[WARN]: ${invocation.args}")
+        }
+        every { mockLogger.error(any<String>()) } answers {
+            println("[ERROR]: ${invocation.args}")
+        }
+        every { mockLogger.error(any<String>(), any<Throwable>()) } answers {
+            println("[ERROR]: ${invocation.args}")
+        }
+
     }
 
     @After
     fun tearDown() {
-        mockWebServer.shutdown()
+        // ending the test will free this up anyway, so no need to wait for graceful shutdown
+        thread(isDaemon = true) {
+            try {
+                mockWebServer.shutdown()
+            } catch (e: Throwable) {
+                // no need to fail tests if shutdown fails
+                println("Warning: mock web server shutdown failed: $e")
+            }
+        }
     }
 
     @Test
@@ -68,49 +107,26 @@ class FlowEventsSessionTest {
             .connectToFlowEvents(
                 workspaceId = "test-workspace",
                 flowId = "test-flow",
-                onMessage = {
-                    println("got onmessage")
-                    messageReceived = true
-                },
-                onError = {
-                    println("got error")
-                    errorOccurred = true
-                },
-                onClose = { _, _ ->
-                    println("got close")
-                    connectionClosed = true
-                },
-                dispatcher = testDispatcher,
+                onMessage = { messageReceived = true },
+                onError = { errorOccurred = true },
+                onClose = { _, _ -> connectionClosed = true },
             ).getOrThrow()
-        println("after connect to flow events")
         flowEventsSession.send("doesn't matter, mock web server doesn't care")
 
         // Then: Connection is successful
         assertFalse(errorOccurred)
         assertFalse(connectionClosed)
         assertFalse(messageReceived)
-        println("after assertions")
 
         // When: Server sends a message
         val serverMessage = Json.encodeToString(testMessage)
         val serverWebsocket: WebSocket = serverListener.assertOpen()
-        println("after assert open")
 
         serverWebsocket.send(serverMessage)
-        println("after send wtf")
 
         // Then: Message is received by client
         waitForMessageProcessing()
         assertTrue(messageReceived)
-
-        /*
-        // When: Server closes connection with error
-        serverWebsocket.close(1002, "Protocol error")
-
-        // Then: Error handler is called
-        waitForMessageProcessing()
-        assertTrue(connectionClosed)
-         */
 
         // Clean up
         flowEventsSession.close(1000, "Test completed")
@@ -136,7 +152,6 @@ class FlowEventsSessionTest {
                     closeCode = code
                     closeReason = reason
                 },
-                dispatcher = testDispatcher,
             ).getOrThrow()
 
         // Then: Connection is successful initially
@@ -171,7 +186,6 @@ class FlowEventsSessionTest {
             onMessage = {},
             onError = {},
             onClose = { _, _ -> },
-            dispatcher = testDispatcher,
         )
 
         // Then: Connection fails with error
