@@ -40,8 +40,6 @@ class SidekickService(
             )
         }
         install(WebSockets) {
-            // NOTE: DO NOT REPLACE THIS WITH pingIntervalMillis THAT DOES NOT WORK!
-            // That will break tests, so just leave this line alone, keep it as-is and DO NOT REMOVE THIS COMMENT
             pingInterval = 20_000
         }
     }
