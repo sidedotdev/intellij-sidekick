@@ -78,8 +78,8 @@ abstract class SidekickWebSocketSession(
         }
 
         val connectionDeferred = CompletableDeferred<Unit>()
-        val wsUrl = buildWsUrl() // Get URL from subclass
-        val serializer = json.serializersModule.serializer<T>() // Get the correct serializer
+        val wsUrl = buildWsUrl()
+        val serializer = json.serializersModule.serializer<T>()
 
         logger.debug("Attempting WebSocket connection to: $wsUrl")
         // Launch the connection and reader logic within the session's scope
@@ -91,13 +91,11 @@ abstract class SidekickWebSocketSession(
                     host = Url(wsUrl).host,
                     port = Url(wsUrl).port,
                     path = Url(wsUrl).encodedPath
-                ) { // 'this' is DefaultClientWebSocketSession
-                    webSocketSession = this // Store the active session handle
+                ) {
+                    webSocketSession = this
                     logger.info("WebSocket connected successfully")
                     logger.debug("Session Job: ${this.coroutineContext[Job]}")
-                    connectionDeferred.complete(Unit) // Signal that connection is established
-
-                    // Start consuming incoming messages using the generic helper
+                    connectionDeferred.complete(Unit)
                     consumeMessagesGeneric(this, serializer, onMessage, onError, onClose)
                 }
             } catch (e: Exception) {
@@ -113,21 +111,21 @@ abstract class SidekickWebSocketSession(
                     // If connection was established, consumeMessagesGeneric's finally/catch handles onClose
                 } else {
                     logger.error("WebSocket connection failed", e)
-                    onError(e) // Invoke the provided error handler
+                    onError(e)
                     if (!connectionDeferred.isCompleted) {
-                        connectionDeferred.completeExceptionally(e) // Signal failure if not already connected
+                        connectionDeferred.completeExceptionally(e)
                     }
                 }
-                webSocketSession = null // Ensure session handle is cleared on error
+                webSocketSession = null
             } finally {
                 // This block executes after the webSocket session ends (normally, via error, or cancellation)
                 logger.debug("WebSocket session coroutine cleanup")
-                webSocketSession = null // Ensure reference is cleared
+                webSocketSession = null
                 // onClose should have been reliably called by consumeMessagesGeneric or catch blocks
             }
         }
 
-        return connectionDeferred // Return deferred for caller to await connection status
+        return connectionDeferred
     }
 
     /**
@@ -151,25 +149,23 @@ abstract class SidekickWebSocketSession(
                 when (frame) {
                     is Frame.Text -> {
                         val text = frame.readText()
-                        // println("Received text frame: $text") // Debugging
                         try {
                             // Deserialize using the specific serializer for type T
                             val message = json.decodeFromString(serializer, text)
-                            onMessage(message) // Invoke the message handler
+                            onMessage(message)
                         } catch (e: Exception) {
                             logger.error("Error processing message type ${typeOf<T>()}: Payload: '$text'", e)
-                            onError(e) // Invoke error handler for processing issues
+                            onError(e)
                         }
                     }
                     is Frame.Close -> {
                         val reason = frame.readReason() ?: CloseReason(CLOSE_CODE_NO_STATUS_RCVD, "No close reason provided")
                         logger.info("Received close frame: Code=${reason.code}, Reason='${reason.message}'")
-                        onClose(reason.code, reason.message) // Invoke close handler
-                        webSocketSession = null // Clear session reference
+                        onClose(reason.code, reason.message)
+                        webSocketSession = null
                         return // Exit the consuming loop
                     }
                     is Frame.Ping -> { // Respond to pings to keep connection alive
-                        // println("Received Ping, sending Pong.") // Debugging
                         session.send(Frame.Pong(frame.buffer))
                     }
                     // Potentially handle Frame.Binary or other types
@@ -193,7 +189,7 @@ abstract class SidekickWebSocketSession(
         } finally {
             // Final cleanup actions after the consume loop exits
             logger.debug("Exiting consume loop")
-            webSocketSession = null // Ensure session reference is cleared
+            webSocketSession = null
         }
     }
 
@@ -205,7 +201,6 @@ abstract class SidekickWebSocketSession(
         val session = webSocketSession // Capture session reference for thread safety
         return if (session?.isActive == true) {
             try {
-                // println("Sending: $message") // Debugging
                 session.send(Frame.Text(message))
                 ApiResponse.Success(Unit) // Indicate success
             } catch (e: Exception) {
@@ -250,16 +245,10 @@ abstract class SidekickWebSocketSession(
             logger.debug("Ktor session was already null or inactive when close was called")
         }
 
-
         // 2. Cancel the session's CoroutineScope. This cancels the readerJob and any other
         // potential jobs launched within this scope. Use a specific exception message.
         logger.debug("Cancelling session scope...")
         sessionScope.cancel(CancellationException("Session closed via close() call: $reason"))
-        logger.debug("Session scope cancellation requested")
-
-        // Optional: Wait for cancellation completion if needed, though usually not necessary
-        // try { sessionScope.coroutineContext[Job]?.join() } catch (e: Exception) { /* ignore */ }
-        // println("Session scope jobs joined after cancellation.")
     }
 }
 
