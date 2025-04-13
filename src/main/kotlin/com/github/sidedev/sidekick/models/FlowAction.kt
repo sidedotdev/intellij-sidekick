@@ -5,14 +5,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 @Serializable
-enum class ActionStatus {
-    PENDING,
-    STARTED,
-    COMPLETE,
-    FAILED
-}
-
-@Serializable
 data class FlowAction(
     val id: String,
     val flowId: String,
