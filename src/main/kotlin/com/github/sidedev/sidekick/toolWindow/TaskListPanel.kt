@@ -4,6 +4,7 @@ import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
@@ -27,7 +28,9 @@ class TaskListPanel(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JBPanel<TaskListPanel>(BorderLayout()) {
 
-    internal val statusLabel = JBLabel("", SwingConstants.CENTER)
+    internal val statusLabel = JBLabel("", SwingConstants.CENTER).apply {
+        isAllowAutoWrapping = true
+    }
     internal val newTaskButton = JButton("Start New Task").apply {
         addActionListener { onNewTask() }
     }
@@ -73,7 +76,7 @@ class TaskListPanel(
                 replaceTasks(response.data)
             }
             is ApiResponse.Error -> {
-                statusLabel.text = response.error.error
+                statusLabel.text = "<html>${ response.error.error }</html>"
                 statusLabel.isVisible = true
             }
         }

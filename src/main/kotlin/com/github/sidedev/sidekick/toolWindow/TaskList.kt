@@ -31,22 +31,20 @@ class TaskCellRenderer : ListCellRenderer<Task> {
         isSelected: Boolean,
         cellHasFocus: Boolean,
     ): Component = JPanel(BorderLayout(10, 0)).apply {
-        val descLabel = JLabel(value.description)
-        val statusLabel = JLabel(value.status)
+        val descLabel = JLabel(value.description ?: "")
+        val statusLabel = JLabel(value.status.toString())
 
         add(descLabel, BorderLayout.CENTER)
         add(statusLabel, BorderLayout.EAST)
 
         if (isSelected) {
             background = list.selectionBackground
-            foreground = list.selectionForeground
-            descLabel.foreground = list.selectionForeground
-            statusLabel.foreground = list.selectionForeground
+            descLabel.foreground = list.getSelectionForeground()
+            statusLabel.foreground = list.getSelectionForeground()
         } else {
             background = list.background
-            foreground = list.foreground
-            descLabel.foreground = list.foreground
-            statusLabel.foreground = list.foreground
+            descLabel.foreground = list.getForeground()
+            statusLabel.foreground = list.getForeground()
         }
         isOpaque = true
     }

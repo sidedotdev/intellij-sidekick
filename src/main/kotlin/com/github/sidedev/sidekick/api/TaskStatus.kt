@@ -15,6 +15,8 @@ enum class TaskStatus {
     IN_PROGRESS,
     @SerialName("complete")
     COMPLETE,
+    @SerialName("canceled")
+    CANCELED,
     @SerialName("failed")
-    FAILED
+    FAILED,
 }

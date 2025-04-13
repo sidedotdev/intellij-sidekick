@@ -35,6 +35,7 @@ repositories {
 dependencies {
     // think we don't need it as intellijPlatform includes it?
     implementation(libs.kotlinxSerializationJson)
+    implementation(libs.kotlinxDatetime)
     implementation(libs.ktorClientCore)
     implementation(libs.ktorClientContentNegotiation)
     implementation(libs.ktorSerializationKotinxJson)

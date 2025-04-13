@@ -154,7 +154,9 @@ class TaskViewPanel(
     }
 
     override fun dispose() {
+        coroutineScope.launch {
+            flowActionSession?.close()
+        }
         coroutineScope.cancel()
-        flowActionSession?.close()
     }
 }

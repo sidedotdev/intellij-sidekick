@@ -1,8 +1,10 @@
 package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.MyBundle
+import com.github.sidedev.sidekick.api.AgentType
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
+import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.Workspace
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
@@ -16,7 +18,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.datetime.Clock
 import java.awt.Component
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SidekickToolWindowTest : LightPlatformTestCase() {
@@ -138,21 +142,21 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
                 id = "task1",
                 workspaceId = "workspace1",
                 description = "Task 1",
-                status = "In Progress",
-                agentType = "agent1",
+                status = TaskStatus.IN_PROGRESS,
+                agentType = AgentType.LLM,
                 flowType = "flow1",
-                created = "2023-01-01T00:00:00Z",
-                updated = "2023-01-01T00:00:00Z",
+                created = Clock.System.now(),
+                updated = Clock.System.now(),
             ),
             Task(
                 id = "task2",
                 workspaceId = "workspace1",
                 description = "Task 2",
-                status = "Done",
-                agentType = "agent2",
+                status = TaskStatus.BLOCKED,
+                agentType = AgentType.HUMAN,
                 flowType = "flow2",
-                created = "2023-01-01T00:00:00Z",
-                updated = "2023-01-01T00:00:00Z",
+                created = Clock.System.now(),
+                updated = Clock.System.now().plus(1.seconds),
             ),
         )
         coEvery { mockSidekickService.getTasks("workspace1") } returns ApiResponse.Success(tasks)
@@ -164,13 +168,13 @@ class SidekickToolWindowTest : LightPlatformTestCase() {
         // Verify the task creation panel is visible
         assertEquals("TASK_CREATE", getVisibleCard(toolWindow).name)
 
-        // Verify the task list contains the expected tasks
+        // Verify the task list contains the expected tasks, most recently updated first
         val taskListModel = getTaskListModel(toolWindow)
         assertEquals(2, taskListModel.size)
-        assertEquals("task1", taskListModel.getElementAt(0).id)
-        assertEquals("task2", taskListModel.getElementAt(1).id)
-        assertEquals("In Progress", taskListModel.getElementAt(0).status)
-        assertEquals("Done", taskListModel.getElementAt(1).status)
+        assertEquals("task1", taskListModel.getElementAt(1).id)
+        assertEquals("task2", taskListModel.getElementAt(0).id)
+        assertEquals(TaskStatus.IN_PROGRESS, taskListModel.getElementAt(1).status)
+        assertEquals(TaskStatus.BLOCKED, taskListModel.getElementAt(0).status)
     }
 
     fun testMatchingWorkspaceWithNoTasks() = runBlocking {

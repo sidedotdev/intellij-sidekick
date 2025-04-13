@@ -1,7 +1,9 @@
 package com.github.sidedev.sidekick.toolWindow
 
+import com.github.sidedev.sidekick.api.AgentType
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
+import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -13,6 +15,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskCreationPanelTest : BasePlatformTestCase() {
@@ -88,12 +91,12 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
         val task = Task(
             id = "1",
             description = "test",
-            status = "TODO",
             workspaceId = "ws_123",
-            agentType = "llm",
+            status = TaskStatus.TO_DO,
+            agentType = AgentType.LLM,
             flowType = "basic_dev",
-            created = "",
-            updated = "",
+            created = Clock.System.now(),
+            updated = Clock.System.now(),
         )
 
         // Given: Mock service that will return success

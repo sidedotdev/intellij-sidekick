@@ -1,12 +1,15 @@
 package com.github.sidedev.sidekick.toolWindow
 
+import com.github.sidedev.sidekick.api.AgentType
 import com.github.sidedev.sidekick.api.Task
+import com.github.sidedev.sidekick.api.TaskStatus
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.datetime.Clock
 import java.awt.Component
 import java.awt.event.MouseEvent
 
@@ -21,12 +24,12 @@ class TaskViewPanelTest : BasePlatformTestCase() {
         testTask = Task(
             id = "task_123",
             workspaceId = "ws_123",
-            status = "PENDING",
-            agentType = "TEST",
+            status = TaskStatus.TO_DO,
+            agentType = AgentType.LLM,
             flowType = "TEST",
             description = "Test task description",
-            created = "2024-01-01T00:00:00Z",
-            updated = "2024-01-01T00:00:00Z"
+            created = Clock.System.now(),
+            updated = Clock.System.now(),
         )
         allTasksClicked = false
         taskViewPanel = TaskViewPanel(
