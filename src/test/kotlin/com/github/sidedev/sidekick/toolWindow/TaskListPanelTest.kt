@@ -10,6 +10,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskListPanelTest : BasePlatformTestCase() {
@@ -24,6 +25,8 @@ class TaskListPanelTest : BasePlatformTestCase() {
     override fun setUp() {
         super.setUp()
         sidekickService = mockk()
+        coEvery { sidekickService.getTasks("test-workspace") } returns ApiResponse.Success(emptyList())
+
         taskListModel = TaskListModel()
         taskListPanel = TaskListPanel(
             workspaceId = "test-workspace",
@@ -34,22 +37,18 @@ class TaskListPanelTest : BasePlatformTestCase() {
         )
     }
 
-    fun testEmptyStateShowsNoTasksMessageAndButton() {
+    fun testEmptyStateShowsNoTasksMessageAndButton() = runTest(testDispatcher) {
         // Given an empty task list
-        taskListModel.updateTasks(emptyList())
-
-        // Then the panel should show "No tasks" message
-        assertTrue("No tasks label should be visible", taskListPanel.noTasksLabel.isVisible)
-        assertEquals("No tasks label should have correct text", "No tasks", taskListPanel.noTasksLabel.text)
+        taskListPanel.replaceTasks(emptyList())
 
         // And the New Task button should be present and visible
         assertTrue("New Task button should be visible", taskListPanel.newTaskButton.isVisible)
-        assertEquals("New Task button should have correct text", "New Task", taskListPanel.newTaskButton.text)
+        assertEquals("New Task button should have correct text", "Start New Task", taskListPanel.newTaskButton.text)
     }
 
-    fun testNewTaskButtonTriggersCallback() {
+    fun testNewTaskButtonTriggersCallback() = runTest(testDispatcher) {
         // Given an empty task list
-        taskListModel.updateTasks(emptyList())
+        taskListPanel.replaceTasks(emptyList())
 
         // When clicking the New Task button
         assertTrue("New Task button should be visible", taskListPanel.newTaskButton.isVisible)
@@ -59,7 +58,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
         assertTrue("New Task callback should be invoked", newTaskCallbackInvoked)
     }
 
-    fun testTaskListDisplayWithNonEmptyTasks() {
+    fun testTaskListDisplayWithNonEmptyTasks() = runTest(testDispatcher) {
         // Given a list of tasks
         val tasks = listOf(
             Task(
@@ -79,12 +78,11 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
         // Then the task list should be visible and empty state hidden
         assertTrue("Task list should be visible", taskListPanel.taskList.isVisible)
-        assertFalse("No tasks label should be hidden", taskListPanel.noTasksLabel.isVisible)
         assertFalse("New Task button should be hidden", taskListPanel.newTaskButton.isVisible)
         assertEquals("Task list should have correct number of items", 1, taskListPanel.taskList.model.size)
     }
 
-    fun testTaskSelectionTriggersCallback() {
+    fun testTaskSelectionTriggersCallback() = runTest(testDispatcher) {
         // Given a list of tasks
         val task = Task(
             id = "1",
@@ -96,7 +94,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
             created = "2023-01-01T00:00:00Z",
             updated = "2023-01-01T00:00:00Z"
         )
-        taskListModel.updateTasks(listOf(task))
+        taskListPanel.replaceTasks(listOf(task))
 
         // When selecting a task
         taskListPanel.taskList.selectedIndex = 0
@@ -105,7 +103,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
         assertTrue("Task selected callback should be invoked", taskSelectedCallbackInvoked)
     }
 
-    fun testRefreshTaskListSuccess() {
+    fun testRefreshTaskListSuccess() = runTest(testDispatcher) {
         // Given a successful API response
         val tasks = listOf(
             Task(
@@ -129,10 +127,9 @@ class TaskListPanelTest : BasePlatformTestCase() {
         // Then the tasks should be updated and status label hidden
         assertEquals("Task list should have correct number of items", 1, taskListPanel.taskList.model.size)
         assertFalse("Status label should be hidden", taskListPanel.statusLabel.isVisible)
-        assertFalse("No tasks label should be hidden", taskListPanel.noTasksLabel.isVisible)
     }
 
-    fun testRefreshTaskListError() {
+    fun testRefreshTaskListError() = runTest(testDispatcher) {
         // Given an initial task list
         val initialTask = Task(
             id = "1",
@@ -144,16 +141,14 @@ class TaskListPanelTest : BasePlatformTestCase() {
             created = "2023-01-01T00:00:00Z",
             updated = "2023-01-01T00:00:00Z"
         )
-        taskListModel.updateTasks(listOf(initialTask))
+        taskListPanel.replaceTasks(listOf(initialTask))
 
         // And an API error response
         val errorMessage = "Failed to fetch tasks"
         coEvery { sidekickService.getTasks("test-workspace") } returns ApiResponse.Error(ApiError(errorMessage))
 
         // When refreshing the task list
-        runBlocking(testDispatcher) {
-            taskListPanel.refreshTaskList()
-        }
+        taskListPanel.refreshTaskList()
 
         // Then the error should be shown and existing tasks preserved
         assertEquals("Status label should show error message", errorMessage, taskListPanel.statusLabel.text)

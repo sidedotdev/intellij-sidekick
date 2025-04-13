@@ -12,20 +12,23 @@ import javax.swing.JButton
 import javax.swing.SwingConstants
 import javax.swing.border.EmptyBorder
 import javax.swing.event.ListSelectionEvent
-import javax.swing.event.ListSelectionListener
 import com.intellij.util.ui.JBUI
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class TaskListPanel(
     private val workspaceId: String,
     private val taskListModel: TaskListModel,
     private val sidekickService: SidekickService,
     private val onTaskSelected: (Task) -> Unit,
-    private val onNewTask: () -> Unit
+    private val onNewTask: () -> Unit,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JBPanel<TaskListPanel>(BorderLayout()) {
 
     internal val statusLabel = JBLabel("", SwingConstants.CENTER)
-    internal val noTasksLabel = JBLabel("No tasks", SwingConstants.CENTER)
-    internal val newTaskButton = JButton("New Task").apply {
+    internal val newTaskButton = JButton("Start New Task").apply {
         addActionListener { onNewTask() }
     }
 
@@ -38,6 +41,7 @@ class TaskListPanel(
                 selectedValue?.let(onTaskSelected)
             }
         }
+        emptyText.text = "No active tasks"
     }
 
     init {
@@ -46,23 +50,25 @@ class TaskListPanel(
         // Add all components with their initial layout
         add(statusLabel, BorderLayout.NORTH)
         add(taskList, BorderLayout.CENTER)
-        add(noTasksLabel, BorderLayout.CENTER)
         add(newTaskButton, BorderLayout.SOUTH)
         
         // Set initial state
         statusLabel.isVisible = false
         updateEmptyState()
+
+        // load task list
+        CoroutineScope(dispatcher).launch {
+            refreshTaskList()
+        }
     }
 
     internal fun replaceTasks(newTasks: List<Task>) {
         taskListModel.updateTasks(newTasks)
-        statusLabel.isVisible = false
         updateEmptyState()
     }
 
     suspend fun refreshTaskList() {
-        val response = sidekickService.getTasks(workspaceId)
-        when (response) {
+        when (val response = sidekickService.getTasks(workspaceId)) {
             is ApiResponse.Success -> {
                 replaceTasks(response.data)
             }
@@ -75,10 +81,8 @@ class TaskListPanel(
 
     private fun updateEmptyState() {
         if (taskListModel.getSize() == 0) {
-            noTasksLabel.isVisible = true
             newTaskButton.isVisible = true
         } else {
-            noTasksLabel.isVisible = false
             newTaskButton.isVisible = false
         }
         
