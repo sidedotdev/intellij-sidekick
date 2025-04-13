@@ -2,6 +2,8 @@ package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
+import com.github.sidedev.sidekick.api.response.ApiError
+import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
@@ -48,12 +50,27 @@ class TaskListPanel(
         add(newTaskButton, BorderLayout.SOUTH)
         
         // Set initial state
+        statusLabel.isVisible = false
         updateEmptyState()
     }
 
     internal fun replaceTasks(newTasks: List<Task>) {
         taskListModel.updateTasks(newTasks)
+        statusLabel.isVisible = false
         updateEmptyState()
+    }
+
+    suspend fun refreshTaskList() {
+        val response = sidekickService.getTasks(workspaceId)
+        when (response) {
+            is ApiResponse.Success -> {
+                replaceTasks(response.data)
+            }
+            is ApiResponse.Error -> {
+                statusLabel.text = response.error.error
+                statusLabel.isVisible = true
+            }
+        }
     }
 
     private fun updateEmptyState() {

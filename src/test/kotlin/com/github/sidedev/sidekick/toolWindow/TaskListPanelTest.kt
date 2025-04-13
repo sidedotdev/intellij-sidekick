@@ -2,9 +2,13 @@ package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
+import com.github.sidedev.sidekick.api.response.ApiError
+import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -99,5 +103,62 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
         // Then the callback should be invoked
         assertTrue("Task selected callback should be invoked", taskSelectedCallbackInvoked)
+    }
+
+    fun testRefreshTaskListSuccess() {
+        // Given a successful API response
+        val tasks = listOf(
+            Task(
+                id = "1",
+                workspaceId = "test-workspace",
+                status = "DONE",
+                agentType = "test",
+                flowType = "test",
+                description = "Test task",
+                created = "2023-01-01T00:00:00Z",
+                updated = "2023-01-01T00:00:00Z"
+            )
+        )
+        coEvery { sidekickService.getTasks("test-workspace") } returns ApiResponse.Success(tasks)
+
+        // When refreshing the task list
+        runBlocking(testDispatcher) {
+            taskListPanel.refreshTaskList()
+        }
+
+        // Then the tasks should be updated and status label hidden
+        assertEquals("Task list should have correct number of items", 1, taskListPanel.taskList.model.size)
+        assertFalse("Status label should be hidden", taskListPanel.statusLabel.isVisible)
+        assertFalse("No tasks label should be hidden", taskListPanel.noTasksLabel.isVisible)
+    }
+
+    fun testRefreshTaskListError() {
+        // Given an initial task list
+        val initialTask = Task(
+            id = "1",
+            workspaceId = "test-workspace",
+            status = "DONE",
+            agentType = "test",
+            flowType = "test",
+            description = "Initial task",
+            created = "2023-01-01T00:00:00Z",
+            updated = "2023-01-01T00:00:00Z"
+        )
+        taskListModel.updateTasks(listOf(initialTask))
+
+        // And an API error response
+        val errorMessage = "Failed to fetch tasks"
+        coEvery { sidekickService.getTasks("test-workspace") } returns ApiResponse.Error(ApiError(errorMessage))
+
+        // When refreshing the task list
+        runBlocking(testDispatcher) {
+            taskListPanel.refreshTaskList()
+        }
+
+        // Then the error should be shown and existing tasks preserved
+        assertEquals("Status label should show error message", errorMessage, taskListPanel.statusLabel.text)
+        assertTrue("Status label should be visible", taskListPanel.statusLabel.isVisible)
+        assertEquals("Task list should preserve existing tasks", 1, taskListPanel.taskList.model.size)
+        assertEquals("Initial task should still be present", initialTask, taskListPanel.taskList.model.getElementAt(0))
     }
 }
