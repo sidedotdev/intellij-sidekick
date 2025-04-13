@@ -54,4 +54,50 @@ class TaskListPanelTest : BasePlatformTestCase() {
         // Then the callback should be invoked
         assertTrue("New Task callback should be invoked", newTaskCallbackInvoked)
     }
+
+    fun testTaskListDisplayWithNonEmptyTasks() {
+        // Given a list of tasks
+        val tasks = listOf(
+            Task(
+                id = "1",
+                workspaceId = "test-workspace",
+                status = "DONE",
+                agentType = "test",
+                flowType = "test",
+                description = "Test task",
+                created = "2023-01-01T00:00:00Z",
+                updated = "2023-01-01T00:00:00Z"
+            )
+        )
+
+        // When updating the task list
+        taskListPanel.replaceTasks(tasks)
+
+        // Then the task list should be visible and empty state hidden
+        assertTrue("Task list should be visible", taskListPanel.taskList.isVisible)
+        assertFalse("No tasks label should be hidden", taskListPanel.noTasksLabel.isVisible)
+        assertFalse("New Task button should be hidden", taskListPanel.newTaskButton.isVisible)
+        assertEquals("Task list should have correct number of items", 1, taskListPanel.taskList.model.size)
+    }
+
+    fun testTaskSelectionTriggersCallback() {
+        // Given a list of tasks
+        val task = Task(
+            id = "1",
+            workspaceId = "test-workspace",
+            status = "DONE",
+            agentType = "test",
+            flowType = "test",
+            description = "Test task",
+            created = "2023-01-01T00:00:00Z",
+            updated = "2023-01-01T00:00:00Z"
+        )
+        taskListModel.updateTasks(listOf(task))
+
+        // When selecting a task
+        taskListPanel.taskList.selectedIndex = 0
+
+        // Then the callback should be invoked
+        assertTrue("Task selected callback should be invoked", taskSelectedCallbackInvoked)
+    }
 }

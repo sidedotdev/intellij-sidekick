@@ -3,11 +3,14 @@ package com.github.sidedev.sidekick.toolWindow
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
 import java.awt.BorderLayout
 import javax.swing.JButton
 import javax.swing.SwingConstants
 import javax.swing.border.EmptyBorder
+import javax.swing.event.ListSelectionEvent
+import javax.swing.event.ListSelectionListener
 import com.intellij.util.ui.JBUI
 
 class TaskListPanel(
@@ -24,19 +27,37 @@ class TaskListPanel(
         addActionListener { onNewTask() }
     }
 
-    init {
-        border = EmptyBorder(JBUI.insets(10))
-        add(statusLabel, BorderLayout.NORTH)
-        updateEmptyState(taskListModel.getSize() == 0)
+    // note: the task list is always visible, even if empty (when it's empty, it's effectively invisible
+    // since nothing is rendered)
+    internal val taskList = JBList(taskListModel).apply {
+        cellRenderer = TaskCellRenderer()
+        addListSelectionListener { e: ListSelectionEvent ->
+            if (!e.valueIsAdjusting) {
+                selectedValue?.let(onTaskSelected)
+            }
+        }
     }
 
-    private fun updateEmptyState(isEmpty: Boolean) {
-        removeAll()
-        add(statusLabel, BorderLayout.NORTH)
+    init {
+        border = EmptyBorder(JBUI.insets(10))
         
-        if (isEmpty) {
-            add(noTasksLabel, BorderLayout.CENTER)
-            add(newTaskButton, BorderLayout.SOUTH)
+        // Add all components with their initial layout
+        add(statusLabel, BorderLayout.NORTH)
+        add(taskList, BorderLayout.CENTER)
+        add(noTasksLabel, BorderLayout.CENTER)
+        add(newTaskButton, BorderLayout.SOUTH)
+        
+        // Set initial state
+        updateEmptyState()
+    }
+
+    internal fun replaceTasks(newTasks: List<Task>) {
+        taskListModel.updateTasks(newTasks)
+        updateEmptyState()
+    }
+
+    private fun updateEmptyState() {
+        if (taskListModel.getSize() == 0) {
             noTasksLabel.isVisible = true
             newTaskButton.isVisible = true
         } else {
