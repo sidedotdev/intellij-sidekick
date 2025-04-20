@@ -19,8 +19,6 @@ class FlowActionTest {
             workspaceId = "test-workspace",
             created = created,
             updated = updated,
-            subflow = "test-subflow",
-            subflowDescription = "test description",
             actionType = "test-type",
             actionParams = mapOf("param1" to JsonPrimitive("value1")),
             actionStatus = ActionStatus.PENDING,
