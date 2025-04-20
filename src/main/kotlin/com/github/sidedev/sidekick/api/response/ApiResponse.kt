@@ -31,6 +31,11 @@ sealed class ApiResponse<out T, out E> {
         }
     }
 
+    fun getOrNull(): T? = when (this) {
+        is Success -> this.data
+        else -> null
+    }
+
     fun getErrorIfAny(): E? = when (this) {
         is Error -> this.error
         else -> null

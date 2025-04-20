@@ -1,9 +1,13 @@
 package com.github.sidedev.sidekick.toolWindow
 
-import com.github.sidedev.sidekick.api.SidekickService
-import com.github.sidedev.sidekick.api.Task
+import com.github.sidedev.sidekick.api.*
+import com.github.sidedev.sidekick.api.TaskRequest
+import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.websocket.FlowActionSession
 import com.github.sidedev.sidekick.models.FlowAction
+import com.github.sidedev.sidekick.toolWindow.components.SubflowSection
+import com.github.sidedev.sidekick.toolWindow.components.TaskInputsSection
+import com.github.sidedev.sidekick.toolWindow.FlowActionComponent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.components.JBLabel
@@ -34,12 +38,13 @@ class TaskViewPanel(
 
     private var flowActionSession: FlowActionSession? = null
     private val coroutineScope = CoroutineScope(dispatcher + Job())
-    private val actionsPanel = JBPanel<JBPanel<*>>().apply {
+    private val contentPanel = JBPanel<JBPanel<*>>().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
     }
     private val scrollPane = JBScrollPane()
     private var isUserScrolling = false
     private var shouldAutoScroll = true
+    private val subflowSections = mutableMapOf<String, SubflowSection>()
 
     init {
         // Create and configure the "All Tasks" link
@@ -53,24 +58,20 @@ class TaskViewPanel(
             })
         }
 
-        // Create main content panel
-        val contentPanel = JBPanel<JBPanel<*>>().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-        }
-
-        // Create and configure the description text area
-        val descriptionArea = JBTextArea().apply {
-            text = task.description
-            lineWrap = true
-            wrapStyleWord = true
-            isEditable = false
-            border = JBUI.Borders.empty(8)
-        }
-
-        // Add description and actions to content panel
-        contentPanel.add(descriptionArea)
+        // Add task inputs section
+        val taskRequest = TaskRequest(
+            description = task.description,
+            status = task.status.toString(),
+            agentType = task.agentType.toString(),
+            flowType = task.flowType ?: "",
+            flowOptions = FlowOptions(
+                determineRequirements = task.flowOptions?.get("determineRequirements")?.toString()?.toBoolean() ?: false,
+                planningPrompt = task.flowOptions?.get("planningPrompt")?.toString(),
+                envType = task.flowOptions?.get("envType")?.toString()
+            )
+        )
+        contentPanel.add(TaskInputsSection(taskRequest))
         contentPanel.add(Box.createVerticalStrut(16))
-        contentPanel.add(actionsPanel)
 
         // Configure scroll pane
         scrollPane.apply {
@@ -92,8 +93,9 @@ class TaskViewPanel(
         add(allTasksLink, BorderLayout.NORTH)
         add(scrollPane, BorderLayout.CENTER)
 
-        // Connect to flow actions if we have a flow
+        // Initialize sections and connect to flow actions if we have a flow
         task.flows?.firstOrNull()?.let { flow ->
+            initializeFlowSections(flow)
             connectToFlowActions(flow.id)
         }
     }
@@ -119,19 +121,63 @@ class TaskViewPanel(
         }
     }
 
+    private fun initializeFlowSections(flow: Flow) {
+        coroutineScope.launch {
+            val subflows = sidekickService.getSubflowsForFlow(task.workspaceId, flow.id).getOrNull() ?: return@launch
+            
+            ApplicationManager.getApplication().invokeLater {
+                // Add requirements section if needed
+                if (task.flowOptions?.get("determineRequirements")?.toString()?.toBoolean() == true) {
+                    val requirementsSubflow = subflows.find { it.type == "requirements" }
+                    requirementsSubflow?.let { subflow ->
+                        val section = SubflowSection(subflow)
+                        subflowSections[subflow.id] = section
+                        contentPanel.add(section)
+                        contentPanel.add(Box.createVerticalStrut(8))
+                    }
+                }
+
+                // Add step sections based on flow type
+                if (task.flowType == "planned_dev") {
+                    subflows.filter { it.type == "step" }.forEach { subflow ->
+                        val section = SubflowSection(subflow)
+                        subflowSections[subflow.id] = section
+                        contentPanel.add(section)
+                        contentPanel.add(Box.createVerticalStrut(8))
+                    }
+                } else {
+                    // For basic_dev, add a single coding section
+                    val codingSubflow = subflows.find { it.type == "coding" }
+                    codingSubflow?.let { subflow ->
+                        val section = SubflowSection(subflow)
+                        subflowSections[subflow.id] = section
+                        contentPanel.add(section)
+                    }
+                }
+                
+                contentPanel.revalidate()
+                contentPanel.repaint()
+            }
+        }
+    }
+
     private fun handleFlowAction(flowAction: FlowAction) {
         ApplicationManager.getApplication().invokeLater {
             val actionComponent = FlowActionComponent(flowAction)
-            actionsPanel.add(actionComponent)
-            actionsPanel.revalidate()
-            actionsPanel.repaint()
+            val section = subflowSections[flowAction.subflowId]
+            
+            if (section != null) {
+                section.addFlowAction(actionComponent)
+                section.revalidate()
+                section.repaint()
 
-            if (shouldAutoScroll) {
-                SwingUtilities.invokeLater {
-                    val viewport = scrollPane.viewport
-                    val viewRect = viewport.viewRect
-                    val viewHeight = viewport.view.height
-                    viewport.viewPosition = Point(viewRect.x, viewHeight - viewRect.height)
+                if (shouldAutoScroll) {
+                    SwingUtilities.invokeLater {
+                        val viewport = scrollPane.viewport
+                        val viewRect = viewport.viewRect
+                        val viewHeight = viewport.view.height
+                        viewport.viewPosition = Point(viewRect.x, viewHeight - viewRect.height)
+                    }
                 }
             }
         }
@@ -142,9 +188,9 @@ class TaskViewPanel(
             val errorLabel = JBLabel("Error: Failed to connect to flow actions. Retrying...").apply {
                 border = JBUI.Borders.empty(8)
             }
-            actionsPanel.add(errorLabel)
-            actionsPanel.revalidate()
-            actionsPanel.repaint()
+            contentPanel.add(errorLabel)
+            contentPanel.revalidate()
+            contentPanel.repaint()
         }
 
         coroutineScope.launch {

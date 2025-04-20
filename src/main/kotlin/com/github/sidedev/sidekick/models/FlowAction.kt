@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonElement
 data class FlowAction(
     val id: String,
     val flowId: String,
-    val subflowId: String?,
+    val subflowId: String? = null,
     val workspaceId: String,
     val created: Instant,
     val updated: Instant,

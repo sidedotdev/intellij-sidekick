@@ -39,11 +39,27 @@ class TaskViewPanelTest : BasePlatformTestCase() {
     }
 
     fun testPanelDisplaysTaskDescription() {
-        // Find the JBTextArea component that should display the description
-        val textArea = findComponentOfType(taskViewPanel, JBTextArea::class.java)
-        assertNotNull("Description text area should exist", textArea)
-        assertEquals("Text area should display task description", testTask.description, textArea!!.text)
-        assertFalse("Text area should be read-only", textArea.isEditable)
+        // Find the JBLabel component that displays the description
+        val descriptionLabel = findComponentsOfType(taskViewPanel, JBLabel::class.java)
+            .find { it.text == testTask.description }
+        assertNotNull("Description label should exist", descriptionLabel)
+        assertEquals("Label should display task description", testTask.description, descriptionLabel!!.text)
+    }
+
+    private fun <T : Component> findComponentsOfType(container: Component, type: Class<T>): List<T> {
+        val results = mutableListOf<T>()
+        
+        if (type.isInstance(container)) {
+            @Suppress("UNCHECKED_CAST")
+            results.add(container as T)
+        }
+        
+        if (container is java.awt.Container) {
+            for (component in container.components) {
+                results.addAll(findComponentsOfType(component, type))
+            }
+        }
+        return results
     }
 
     fun testPanelHasScrollPane() {
