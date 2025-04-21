@@ -127,12 +127,6 @@ class SidekickService(
             path = "/workspaces/$workspaceId/subflows/$subflowId",
         ).map { it.subflow }
 
-    suspend fun getSubflowsForFlow(workspaceId: String, flowId: String): ApiResponse<List<Subflow>, ApiError> =
-        request<Unit, SubflowsResponse>(
-            method = HttpMethod.Get,
-            path = "/workspaces/$workspaceId/flows/$flowId/subflows",
-        ).map { it.subflows }
-
     suspend fun connectToFlowEvents(
         workspaceId: String,
         flowId: String,

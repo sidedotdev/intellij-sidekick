@@ -1,6 +1,5 @@
 package com.github.sidedev.sidekick.toolWindow.components
 
-import com.github.sidedev.sidekick.api.Subflow
 import com.github.sidedev.sidekick.toolWindow.FlowActionComponent
 import com.intellij.ui.components.JBPanel
 import com.intellij.util.ui.JBUI
@@ -8,9 +7,9 @@ import java.awt.BorderLayout
 import javax.swing.BoxLayout
 import javax.swing.JPanel
 
-class SubflowSection(
-    private val subflow: Subflow
-) : JBPanel<SubflowSection>(BorderLayout()) {
+class TaskSection(
+    private val name: String
+) : JBPanel<TaskSection>(BorderLayout()) {
     
     private val contentPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -22,11 +21,7 @@ class SubflowSection(
     init {
         // Create header text combining name and description
         val headerText = buildString {
-            append(subflow.name)
-            subflow.description?.let {
-                append(" - ")
-                append(it)
-            }
+            append(name)
         }
         
         // Create accordion section with the content panel

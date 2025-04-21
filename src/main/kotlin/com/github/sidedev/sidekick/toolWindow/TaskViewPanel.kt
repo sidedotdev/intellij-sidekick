@@ -5,15 +5,14 @@ import com.github.sidedev.sidekick.api.TaskRequest
 import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.websocket.FlowActionSession
 import com.github.sidedev.sidekick.models.FlowAction
-import com.github.sidedev.sidekick.toolWindow.components.SubflowSection
+import com.github.sidedev.sidekick.toolWindow.components.TaskSection
 import com.github.sidedev.sidekick.toolWindow.components.TaskInputsSection
-import com.github.sidedev.sidekick.toolWindow.FlowActionComponent
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.*
 import java.awt.BorderLayout
@@ -21,14 +20,15 @@ import java.awt.Cursor
 import java.awt.Point
 import javax.swing.Box
 import javax.swing.BoxLayout
-import javax.swing.JComponent
 import javax.swing.SwingUtilities
+import com.intellij.openapi.diagnostic.logger
 
 class TaskViewPanel(
     private val task: Task,
     private val onAllTasksClick: () -> Unit,
     private val sidekickService: SidekickService = SidekickService(),
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val logger: Logger = logger<TaskViewPanel>(),
 ) : JBPanel<TaskViewPanel>(BorderLayout()), Disposable {
 
     companion object {
@@ -44,7 +44,8 @@ class TaskViewPanel(
     private val scrollPane = JBScrollPane()
     private var isUserScrolling = false
     private var shouldAutoScroll = true
-    private val subflowSections = mutableMapOf<String, SubflowSection>()
+    private val taskSections = mutableMapOf<String, TaskSection>()
+    private val trackedSubflowIds = mutableSetOf<String>()
 
     init {
         // Create and configure the "All Tasks" link
@@ -89,15 +90,15 @@ class TaskViewPanel(
             }
         }
 
-        // Add components to the panel
+        // Add other components to the panel
         add(allTasksLink, BorderLayout.NORTH)
         add(scrollPane, BorderLayout.CENTER)
 
-        // Initialize sections and connect to flow actions if we have a flow
+        // connect to flow actions if we have a flow
         task.flows?.firstOrNull()?.let { flow ->
-            initializeFlowSections(flow)
             connectToFlowActions(flow.id)
         }
+        // TODO if we don't have a flow yet, poll for it
     }
 
     private fun connectToFlowActions(flowId: String) {
@@ -121,50 +122,40 @@ class TaskViewPanel(
         }
     }
 
-    private fun initializeFlowSections(flow: Flow) {
-        coroutineScope.launch {
-            val subflows = sidekickService.getSubflowsForFlow(task.workspaceId, flow.id).getOrNull() ?: return@launch
-            
-            ApplicationManager.getApplication().invokeLater {
-                // Add requirements section if needed
-                if (task.flowOptions?.get("determineRequirements")?.toString()?.toBoolean() == true) {
-                    val requirementsSubflow = subflows.find { it.type == "requirements" }
-                    requirementsSubflow?.let { subflow ->
-                        val section = SubflowSection(subflow)
-                        subflowSections[subflow.id] = section
-                        contentPanel.add(section)
-                        contentPanel.add(Box.createVerticalStrut(8))
-                    }
-                }
+    private suspend fun handleFlowAction(flowAction: FlowAction) {
+        flowAction.subflowId?.let { subflowId ->
+            if (!trackedSubflowIds.contains(subflowId)) {
+                trackedSubflowIds.add(subflowId)
 
-                // Add step sections based on flow type
-                if (task.flowType == "planned_dev") {
-                    subflows.filter { it.type == "step" }.forEach { subflow ->
-                        val section = SubflowSection(subflow)
-                        subflowSections[subflow.id] = section
-                        contentPanel.add(section)
-                        contentPanel.add(Box.createVerticalStrut(8))
-                    }
-                } else {
-                    // For basic_dev, add a single coding section
-                    val codingSubflow = subflows.find { it.type == "coding" }
-                    codingSubflow?.let { subflow ->
-                        val section = SubflowSection(subflow)
-                        subflowSections[subflow.id] = section
-                        contentPanel.add(section)
+                // Fetch subflow details and create section
+                val subflowResponse = sidekickService.getSubflow(task.workspaceId, subflowId)
+                subflowResponse.map { subflow ->
+                    ApplicationManager.getApplication().invokeLater {
+                        var section: TaskSection? = null
+                        synchronized(taskSections) {
+                            if (!taskSections.containsKey(subflowId)) {
+                                section = TaskSection(subflow.name)
+                                taskSections[subflowId] = section!!
+                            }
+                        }
+                        if (section != null) {
+                            contentPanel.add(section)
+                            contentPanel.add(Box.createVerticalStrut(8))
+                            contentPanel.revalidate()
+                            contentPanel.repaint()
+                        }
                     }
                 }
-                
-                contentPanel.revalidate()
-                contentPanel.repaint()
+                subflowResponse.mapError { e ->
+                    logger.error(Exception("OMG 123: " + e.error))
+                    // FIXME handle non-connection error by rendering on a secondary error label
+                }
             }
         }
-    }
 
-    private fun handleFlowAction(flowAction: FlowAction) {
         ApplicationManager.getApplication().invokeLater {
             val actionComponent = FlowActionComponent(flowAction)
-            val section = subflowSections[flowAction.subflowId]
+            val section = taskSections[flowAction.subflowId]
             
             if (section != null) {
                 section.addFlowAction(actionComponent)
@@ -179,6 +170,8 @@ class TaskViewPanel(
                         viewport.viewPosition = Point(viewRect.x, viewHeight - viewRect.height)
                     }
                 }
+            } else {
+                logger.error("Section not found for flow action: ${flowAction.subflowId}")
             }
         }
     }
@@ -188,6 +181,7 @@ class TaskViewPanel(
             val errorLabel = JBLabel("Error: Failed to connect to flow actions. Retrying...").apply {
                 border = JBUI.Borders.empty(8)
             }
+            // FIXME the errorLabel should always exist, but be made visible when needed, instead of new labels being created every time an error occurs
             contentPanel.add(errorLabel)
             contentPanel.revalidate()
             contentPanel.repaint()

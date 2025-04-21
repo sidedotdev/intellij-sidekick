@@ -20,7 +20,7 @@ data class Subflow(
     val workspaceId: String,
     val id: String,
     val name: String,
-    val type: String,
+    val type: String? = null, // note: temporary, until we migrate old subflows to all have a type
     val description: String? = null,
     val status: SubflowStatus,
     val parentSubflowId: String? = null,
