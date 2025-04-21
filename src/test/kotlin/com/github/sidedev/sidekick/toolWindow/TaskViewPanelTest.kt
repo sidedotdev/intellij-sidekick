@@ -1,14 +1,16 @@
 package com.github.sidedev.sidekick.toolWindow
 
-import com.github.sidedev.sidekick.api.AgentType
-import com.github.sidedev.sidekick.api.Task
-import com.github.sidedev.sidekick.api.TaskStatus
+import com.github.sidedev.sidekick.api.*
+import com.github.sidedev.sidekick.models.Subflow
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextArea
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import java.awt.Component
 import java.awt.event.MouseEvent
@@ -18,6 +20,7 @@ class TaskViewPanelTest : BasePlatformTestCase() {
     private lateinit var taskViewPanel: TaskViewPanel
     private lateinit var testTask: Task
     private var allTasksClicked = false
+    private lateinit var sidekickService: SidekickService
 
     override fun setUp() {
         super.setUp()
@@ -32,9 +35,11 @@ class TaskViewPanelTest : BasePlatformTestCase() {
             updated = Clock.System.now(),
         )
         allTasksClicked = false
+        sidekickService = mockk()
         taskViewPanel = TaskViewPanel(
             task = testTask,
-            onAllTasksClick = { allTasksClicked = true }
+            onAllTasksClick = { allTasksClicked = true },
+            sidekickService = sidekickService
         )
     }
 
@@ -106,5 +111,70 @@ class TaskViewPanelTest : BasePlatformTestCase() {
             }
         }
         return null
+    }
+
+    fun testDetermineSubflowCategory() = runTest {
+        val requirementsSubflow = Subflow(id = "test", type = "dev_requirements")
+        assertEquals(
+            TaskViewPanel.CATEGORY_REQUIREMENTS_PLANNING,
+            taskViewPanel.determineSubflowCategory(requirementsSubflow)
+        )
+
+        val planSubflow = Subflow(id = "test", type = "dev_plan")
+        assertEquals(
+            TaskViewPanel.CATEGORY_REQUIREMENTS_PLANNING,
+            taskViewPanel.determineSubflowCategory(planSubflow)
+        )
+
+        val llmStepSubflow = Subflow(id = "test-id", type = "llm_step")
+        assertEquals(
+            "llm_step:test-id",
+            taskViewPanel.determineSubflowCategory(llmStepSubflow)
+        )
+
+        val unknownSubflow = Subflow(id = "test", type = "unknown")
+        assertEquals(
+            TaskViewPanel.CATEGORY_CODING,
+            taskViewPanel.determineSubflowCategory(unknownSubflow)
+        )
+    }
+
+    fun testFindRelevantSubflowType() = runTest {
+        val child = Subflow(id = "child", parentSubflowId = "parent")
+        val parent = Subflow(id = "parent", type = "dev_requirements")
+        
+        coEvery { 
+            sidekickService.getSubflow("ws_123", "parent")
+        } returns ApiResponse.Success(parent)
+        
+        assertEquals(
+            "dev_requirements",
+            taskViewPanel.findRelevantSubflowType(child)
+        )
+    }
+
+    fun testGetSectionName() {
+        assertEquals(
+            "Requirements and Planning",
+            taskViewPanel.getSectionName(TaskViewPanel.CATEGORY_REQUIREMENTS_PLANNING)
+        )
+        
+        taskViewPanel.apply { 
+            hasRequirementsSubflow = true
+            assertEquals("Requirements", getSectionName(TaskViewPanel.CATEGORY_REQUIREMENTS_PLANNING))
+            
+            hasPlanningSubflow = true
+            assertEquals("Requirements and Planning", getSectionName(TaskViewPanel.CATEGORY_REQUIREMENTS_PLANNING))
+        }
+
+        assertEquals(
+            "Coding",
+            taskViewPanel.getSectionName(TaskViewPanel.CATEGORY_CODING)
+        )
+
+        assertEquals(
+            "Step test-id",
+            taskViewPanel.getSectionName("llm_step:test-id")
+        )
     }
 }

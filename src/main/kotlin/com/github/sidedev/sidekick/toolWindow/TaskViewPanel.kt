@@ -34,6 +34,18 @@ class TaskViewPanel(
     companion object {
         const val NAME = "TaskView"
         private const val RECONNECT_DELAY_MS = 1000L
+        private const val MAX_PARENT_TRAVERSAL_DEPTH = 20
+        
+        // Section category constants
+        internal const val CATEGORY_REQUIREMENTS_PLANNING = "requirements-planning"
+        internal const val CATEGORY_CODING = "coding"
+        internal const val CATEGORY_UNCATEGORIZED = "uncategorized"
+        private const val LLM_STEP_PREFIX = "llm_step:"
+        
+        // Subflow type constants  
+        private const val TYPE_DEV_REQUIREMENTS = "dev_requirements"
+        private const val TYPE_DEV_PLAN = "dev_plan"
+        private const val TYPE_LLM_STEP = "llm_step"
     }
 
     private var flowActionSession: FlowActionSession? = null
@@ -46,6 +58,57 @@ class TaskViewPanel(
     private var shouldAutoScroll = true
     private val taskSections = mutableMapOf<String, TaskSection>()
     private val trackedSubflowIds = mutableSetOf<String>()
+    
+    // Tracks if we've seen requirements and planning subflows to update section name
+    private var hasRequirementsSubflow = false
+    private var hasPlanningSubflow = false
+
+    /**
+     * Determines the appropriate section category for a subflow based on its type and ancestry
+     */
+    internal suspend fun determineSubflowCategory(subflow: Subflow): String {
+        val type = findRelevantSubflowType(subflow)
+        return when (type) {
+            TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN -> CATEGORY_REQUIREMENTS_PLANNING
+            TYPE_LLM_STEP -> "$LLM_STEP_PREFIX${subflow.id}"
+            else -> CATEGORY_CODING
+        }
+    }
+
+    /**
+     * Traverses parent subflows to find a relevant type for categorization
+     */
+    internal suspend fun findRelevantSubflowType(subflow: Subflow, depth: Int = 0): String? {
+        if (depth >= MAX_PARENT_TRAVERSAL_DEPTH) return null
+        
+        // Check current subflow type
+        subflow.type?.let { return it }
+        
+        // Traverse parent if exists
+        val parentId = subflow.parentSubflowId ?: return null
+        return sidekickService.getSubflow(task.workspaceId, parentId)
+            .map { parent -> findRelevantSubflowType(parent, depth + 1) }
+            .getOrNull()
+    }
+
+    /**
+     * Gets the display name for a section based on its category
+     */
+    internal fun getSectionName(category: String): String {
+        return when {
+            category == CATEGORY_REQUIREMENTS_PLANNING -> {
+                when {
+                    hasRequirementsSubflow && hasPlanningSubflow -> "Requirements and Planning"
+                    hasRequirementsSubflow -> "Requirements"
+                    hasPlanningSubflow -> "Planning"
+                    else -> "Requirements and Planning" // Default if type not yet known
+                }
+            }
+            category == CATEGORY_CODING -> "Coding"
+            category.startsWith(LLM_STEP_PREFIX) -> "Step ${category.substringAfter(LLM_STEP_PREFIX)}"
+            else -> "Uncategorized"
+        }
+    }
 
     init {
         // Create and configure the "All Tasks" link
