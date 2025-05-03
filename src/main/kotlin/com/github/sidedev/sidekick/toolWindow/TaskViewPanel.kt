@@ -5,8 +5,7 @@ import com.github.sidedev.sidekick.api.TaskRequest
 import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.websocket.FlowActionSession
 import com.github.sidedev.sidekick.models.FlowAction
-import com.github.sidedev.sidekick.toolWindow.components.TaskSection
-import com.github.sidedev.sidekick.toolWindow.components.TaskInputsSection
+import com.github.sidedev.sidekick.toolWindow.components.TaskExecutionSection
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
@@ -57,7 +56,7 @@ class TaskViewPanel(
     private val scrollPane = JBScrollPane()
     private var isUserScrolling = false
     private var shouldAutoScroll = true
-    private val taskSections = mutableMapOf<String, TaskSection>()
+    private val taskSections = mutableMapOf<String, TaskExecutionSection>()
     
     // Tracks if we've seen requirements and planning subflows to update section name
     internal var hasRequirementsSubflow = false
@@ -68,10 +67,10 @@ class TaskViewPanel(
      * its type or its ancestor's type
      */
     internal suspend fun determineSectionId(subflow: Subflow): String {
-        val type = findRelevantSubflowType(subflow)
-        return when (type) {
+        val primarySubflow = findPrimarySubflow(subflow)
+        return when (primarySubflow?.type) {
             TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN -> SECTION_REQUIREMENTS_PLANNING
-            TYPE_LLM_STEP -> subflow.name
+            TYPE_LLM_STEP -> primarySubflow.name
             TYPE_CODING -> SECTION_CODING
             else -> SECTION_UNKNOWN
         }
@@ -80,27 +79,27 @@ class TaskViewPanel(
     /**
      * Traverses parent subflows to find a relevant type for categorization
      */
-    internal suspend fun findRelevantSubflowType(subflow: Subflow): String {
+    internal suspend fun findPrimarySubflow(subflow: Subflow): Subflow? {
         // Check current subflow type
         subflow.type?.let {
             when (it) {
                 TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN, TYPE_LLM_STEP, TYPE_CODING,
-                     -> return it
+                     -> return subflow
                 else -> Unit
             }
         }
         
         // Traverse parent if exists
-        val parentId = subflow.parentSubflowId ?: return TYPE_MISSING_TYPE
-         getSubflow(parentId).getOrNull()
+        val parentId = subflow.parentSubflowId ?: return null
 
         val parentSubflow = getSubflow(parentId).getOrNull()
         return if (parentSubflow == null) {
             // TODO make a visible error message for this?
             logger.error("failed to get subflow with id: $parentId")
-            return TYPE_MISSING_TYPE
+            null
         } else {
-            findRelevantSubflowType(parentSubflow)
+            logger.info("subflow type ${subflow.type} has parent subflow type ${parentSubflow.type}")
+            findPrimarySubflow(parentSubflow)
         }
     }
 
@@ -147,12 +146,13 @@ class TaskViewPanel(
                 envType = task.flowOptions?.get("envType")?.toString()
             )
         )
-        contentPanel.add(TaskInputsSection(taskRequest))
-        contentPanel.add(Box.createVerticalStrut(16))
+        // FIXME rewrite task inputs section to inherit from accordion section, just like TaskSection does
+        //contentPanel.add(TaskInputsSection(taskRequest))
 
         // Configure scroll pane
         scrollPane.apply {
             setViewportView(contentPanel)
+            // TODO // setColumnHeaderView()
             verticalScrollBar.unitIncrement = 16
             viewport.addChangeListener { 
                 if (!isUserScrolling) return@addChangeListener
@@ -201,19 +201,28 @@ class TaskViewPanel(
     private suspend fun handleFlowAction(flowAction: FlowAction) {
         val actionComponent = FlowActionComponent(flowAction)
 
-        // Handle uncategorized actions first
+        // Handle actions without a subflow first
         if (flowAction.subflowId == null) {
             ApplicationManager.getApplication().invokeLater {
                 // Add to last section if it exists and isn't requirements/planning
                 val lastSection = taskSections.values.lastOrNull()
                 if (lastSection != null && taskSections.keys.last() != SECTION_REQUIREMENTS_PLANNING) {
+                    val maybeGlue = contentPanel.components.lastOrNull()
+                    if (maybeGlue?.name == "end_glue") {
+                        lastSection.remove(maybeGlue)
+                    }
                     lastSection.addFlowAction(actionComponent)
+                    lastSection.add(Box.createVerticalGlue().apply { name = "end_glue" });
                     lastSection.revalidate()
                     lastSection.repaint()
                 } else {
                     // Add directly to content panel if no suitable section exists
+                    val maybeGlue = contentPanel.components.lastOrNull()
+                    if (maybeGlue?.name == "end_glue") {
+                        contentPanel.remove(maybeGlue)
+                    }
                     contentPanel.add(actionComponent)
-                    contentPanel.add(Box.createVerticalStrut(8))
+                    contentPanel.add(Box.createVerticalGlue().apply { name = "end_glue" });
                     contentPanel.revalidate()
                     contentPanel.repaint()
                 }
@@ -238,18 +247,25 @@ class TaskViewPanel(
         }
 
         val sectionId = determineSectionId(subflow)
+        logger.info("subflow type: ${subflow.type}, section id: $sectionId")
 
         // Create section if needed
         // Add flow action to the appropriate section
         ApplicationManager.getApplication().invokeLater {
-            val section: TaskSection = synchronized(taskSections) {
+            val section: TaskExecutionSection = synchronized(taskSections) {
                 val existingSection = taskSections[sectionId]
                 if (existingSection != null) {
+                    existingSection.updateName(getSectionName(sectionId))
                     existingSection
                 } else {
-                    val section = TaskSection(getSectionName(sectionId))
+                    val maybeGlue = contentPanel.components.lastOrNull()
+                    if (maybeGlue?.name == "end_glue") {
+                        contentPanel.remove(maybeGlue)
+                    }
+                    val section = TaskExecutionSection(getSectionName(sectionId))
                     contentPanel.add(section)
-                    contentPanel.add(Box.createVerticalStrut(8))
+                    contentPanel.add(Box.createVerticalGlue().apply { name = "end_glue" });
+
                     contentPanel.revalidate()
                     contentPanel.repaint()
                     taskSections[sectionId] = section
@@ -288,6 +304,8 @@ class TaskViewPanel(
 
     private fun handleConnectionError(error: Throwable, flowId: String) {
         ApplicationManager.getApplication().invokeLater {
+            logger.error(error)
+            /*
             val errorLabel = JBLabel("Error: Failed to connect to flow actions. Retrying...").apply {
                 border = JBUI.Borders.empty(8)
             }
@@ -295,6 +313,7 @@ class TaskViewPanel(
             contentPanel.add(errorLabel)
             contentPanel.revalidate()
             contentPanel.repaint()
+             */
         }
 
         coroutineScope.launch {

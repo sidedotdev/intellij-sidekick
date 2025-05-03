@@ -153,7 +153,7 @@ class TaskViewPanelTest : BasePlatformTestCase() {
         
         assertEquals(
             "dev_requirements",
-            taskViewPanel.findRelevantSubflowType(child)
+            taskViewPanel.findPrimarySubflow(child)!!.type
         )
     }
 
