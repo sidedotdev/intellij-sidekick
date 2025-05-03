@@ -96,7 +96,7 @@ open class AccordionSection(
         repaint()
     }
     
-    fun setExpanded(expand: Boolean) {
+    open fun setExpanded(expand: Boolean) { // Add 'open' keyword
         if (expanded != expand) {
             toggleExpanded()
         }
