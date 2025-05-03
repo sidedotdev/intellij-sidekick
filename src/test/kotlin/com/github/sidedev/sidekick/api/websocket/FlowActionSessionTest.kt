@@ -84,8 +84,6 @@ class FlowActionSessionTest {
             workspaceId = "test-workspace",
             created = now,
             updated = now,
-            subflow = "test-subflow",
-            subflowDescription = "Test subflow description",
             actionType = "test-action",
             actionParams = mapOf("key" to JsonPrimitive("value")),
             actionStatus = ActionStatus.STARTED,

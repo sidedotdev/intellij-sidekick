@@ -31,6 +31,11 @@ sealed class ApiResponse<out T, out E> {
         }
     }
 
+    fun getOrNull(): T? = when (this) {
+        is Success -> this.data
+        else -> null
+    }
+
     fun getErrorIfAny(): E? = when (this) {
         is Error -> this.error
         else -> null
@@ -46,7 +51,17 @@ sealed class ApiResponse<out T, out E> {
         return (this as Error)
     }
 
+    suspend fun <U> mapSuspend(f: suspend (T) -> U): ApiResponse<U, E> {
+        if (isSuccess()) return Success(f((this as Success).data))
+        return (this as Error)
+    }
+
     fun <F> mapError(f: (E) -> F): ApiResponse<T, F> {
+        if (isError()) return Error(f((this as Error).error))
+        return (this as Success)
+    }
+
+    suspend fun <F> mapErrorSuspend(f: suspend (E) -> F): ApiResponse<T, F> {
         if (isError()) return Error(f((this as Error).error))
         return (this as Success)
     }
@@ -55,4 +70,10 @@ sealed class ApiResponse<out T, out E> {
         isSuccess() -> successMapper((this as Success).data)
         else -> errorMapper((this as Error).error)
     }
+
+    fun asResult(): Result<T> = when (this) {
+        is Success -> Result.success(data)
+        is Error -> throw Exception("${error}")
+    }
+
 }

@@ -149,12 +149,17 @@ abstract class SidekickWebSocketSession(
                 when (frame) {
                     is Frame.Text -> {
                         val text = frame.readText()
+                        var message: T? = null
                         try {
-                            // Deserialize using the specific serializer for type T
-                            val message = json.decodeFromString(serializer, text)
-                            onMessage(message)
+                            message = json.decodeFromString(serializer, text)
                         } catch (e: Exception) {
                             logger.error("Error processing message type ${typeOf<T>()}: Payload: '$text'", e)
+                            onError(e)
+                        }
+                        try {
+                            message?.let { onMessage(it) }
+                        } catch (e: Exception) {
+                            logger.error("Error in onMessage handler. Message: $message\nonMessage exception:", e)
                             onError(e)
                         }
                     }

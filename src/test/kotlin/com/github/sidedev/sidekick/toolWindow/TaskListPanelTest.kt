@@ -1,9 +1,12 @@
 package com.github.sidedev.sidekick.toolWindow
 
+import com.github.sidedev.sidekick.api.AgentType
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
+import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -11,6 +14,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskListPanelTest : BasePlatformTestCase() {
@@ -21,6 +25,17 @@ class TaskListPanelTest : BasePlatformTestCase() {
     private var newTaskCallbackInvoked = false
     
     private val testDispatcher = UnconfinedTestDispatcher()
+
+    private val exampleTask = Task(
+        id = "1",
+        workspaceId = "test-workspace",
+        status = TaskStatus.IN_PROGRESS,
+        agentType = AgentType.LLM,
+        flowType = "test",
+        description = "Initial task",
+        created = Clock.System.now(),
+        updated = Clock.System.now(),
+    )
 
     override fun setUp() {
         super.setUp()
@@ -60,18 +75,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
     fun testTaskListDisplayWithNonEmptyTasks() = runTest(testDispatcher) {
         // Given a list of tasks
-        val tasks = listOf(
-            Task(
-                id = "1",
-                workspaceId = "test-workspace",
-                status = "DONE",
-                agentType = "test",
-                flowType = "test",
-                description = "Test task",
-                created = "2023-01-01T00:00:00Z",
-                updated = "2023-01-01T00:00:00Z"
-            )
-        )
+        val tasks = listOf(exampleTask)
 
         // When updating the task list
         taskListPanel.replaceTasks(tasks)
@@ -84,17 +88,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
     fun testTaskSelectionTriggersCallback() = runTest(testDispatcher) {
         // Given a list of tasks
-        val task = Task(
-            id = "1",
-            workspaceId = "test-workspace",
-            status = "DONE",
-            agentType = "test",
-            flowType = "test",
-            description = "Test task",
-            created = "2023-01-01T00:00:00Z",
-            updated = "2023-01-01T00:00:00Z"
-        )
-        taskListPanel.replaceTasks(listOf(task))
+        taskListPanel.replaceTasks(listOf(exampleTask))
 
         // When selecting a task
         taskListPanel.taskList.selectedIndex = 0
@@ -105,18 +99,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
     fun testRefreshTaskListSuccess() = runTest(testDispatcher) {
         // Given a successful API response
-        val tasks = listOf(
-            Task(
-                id = "1",
-                workspaceId = "test-workspace",
-                status = "DONE",
-                agentType = "test",
-                flowType = "test",
-                description = "Test task",
-                created = "2023-01-01T00:00:00Z",
-                updated = "2023-01-01T00:00:00Z"
-            )
-        )
+        val tasks = listOf(exampleTask)
         coEvery { sidekickService.getTasks("test-workspace") } returns ApiResponse.Success(tasks)
 
         // When refreshing the task list
@@ -131,17 +114,8 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
     fun testRefreshTaskListError() = runTest(testDispatcher) {
         // Given an initial task list
-        val initialTask = Task(
-            id = "1",
-            workspaceId = "test-workspace",
-            status = "DONE",
-            agentType = "test",
-            flowType = "test",
-            description = "Initial task",
-            created = "2023-01-01T00:00:00Z",
-            updated = "2023-01-01T00:00:00Z"
-        )
-        taskListPanel.replaceTasks(listOf(initialTask))
+        taskListPanel.replaceTasks(listOf(exampleTask))
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // And an API error response
         val errorMessage = "Failed to fetch tasks"
@@ -151,9 +125,13 @@ class TaskListPanelTest : BasePlatformTestCase() {
         taskListPanel.refreshTaskList()
 
         // Then the error should be shown and existing tasks preserved
-        assertEquals("Status label should show error message", errorMessage, taskListPanel.statusLabel.text)
+        assertEquals("Status label should show error message", "<html>$errorMessage</html>", taskListPanel.statusLabel.text)
         assertTrue("Status label should be visible", taskListPanel.statusLabel.isVisible)
+
+        // FIXME this is slightly flaky, it sometimes fails saying:
+        //      junit.framework.AssertionFailedError: Task list should preserve existing tasks expected:<1> but was:<0>
         assertEquals("Task list should preserve existing tasks", 1, taskListPanel.taskList.model.size)
-        assertEquals("Initial task should still be present", initialTask, taskListPanel.taskList.model.getElementAt(0))
+
+        assertEquals("Initial task should still be present", exampleTask, taskListPanel.taskList.model.getElementAt(0))
     }
 }

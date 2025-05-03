@@ -1,8 +1,8 @@
 package com.github.sidedev.sidekick.toolWindow
 
-import com.github.sidedev.sidekick.MyBundle
 import com.github.sidedev.sidekick.api.SidekickService
-import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.github.sidedev.sidekick.api.TaskStatus
+import com.github.sidedev.sidekick.api.AgentType
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
@@ -14,9 +14,7 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.jetbrains.annotations.NotNull
 import java.awt.CardLayout
 import com.github.sidedev.sidekick.api.Task
@@ -102,12 +100,12 @@ class SidekickToolWindow(
             task = Task(
                 id = "",
                 workspaceId = "",
-                status = "",
-                agentType = "",
-                flowType = "",
+                status = TaskStatus.DRAFTING,
+                agentType = AgentType.NONE,
+                flowType = null,
                 description = "",
-                created = "",
-                updated = ""
+                created = kotlinx.datetime.Clock.System.now(),
+                updated = kotlinx.datetime.Clock.System.now()
             ),
             onAllTasksClick = { showTaskList() }
         )

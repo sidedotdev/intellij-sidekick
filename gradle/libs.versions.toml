@@ -2,6 +2,7 @@
 # libraries
 junit = "4.13.2"
 kotlinx = "1.8.0"
+kotlinx-datetime = "0.6.2"
 ktor = "2.3.5"
 mockk = "1.13.8"
 okhttp = "4.10.0"
@@ -16,6 +17,7 @@ qodana = "2024.2.3"
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinxSerializationJson = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx" }
+kotlinxDatetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinx-datetime" }
 ktorClientCore = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
 ktorClientCIO = { group = "io.ktor", name = "ktor-client-cio", version.ref = "ktor" }
 ktorClientContentNegotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }

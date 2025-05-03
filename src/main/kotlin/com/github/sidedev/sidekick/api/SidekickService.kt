@@ -26,7 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 
 class SidekickService(
-    private val baseUrl: String = "http://localhost:8855/api/v1",
+    private val baseUrl: String = "http://localhost:8855",
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val logger: Logger = logger<SidekickService>(),
 ) {
@@ -49,7 +49,7 @@ class SidekickService(
         path: String,
         requestBody: Req? = null,
     ): ApiResponse<Res, ApiError> = try {
-        val response = client.request("$baseUrl$path") {
+        val response = client.request("$baseUrl/api/v1$path") {
             this.method = method
             contentType(ContentType.Application.Json)
             if (requestBody != null) {
@@ -120,6 +120,12 @@ class SidekickService(
             method = HttpMethod.Delete,
             path = "/workspaces/$workspaceId/tasks/$taskId",
         )
+
+    suspend fun getSubflow(workspaceId: String, subflowId: String): ApiResponse<Subflow, ApiError> =
+        request<Unit, SubflowResponse>(
+            method = HttpMethod.Get,
+            path = "/workspaces/$workspaceId/subflows/$subflowId",
+        ).map { it.subflow }
 
     suspend fun connectToFlowEvents(
         workspaceId: String,
