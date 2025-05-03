@@ -6,6 +6,7 @@ import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -114,6 +115,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
     fun testRefreshTaskListError() = runTest(testDispatcher) {
         // Given an initial task list
         taskListPanel.replaceTasks(listOf(exampleTask))
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // And an API error response
         val errorMessage = "Failed to fetch tasks"
@@ -125,7 +127,11 @@ class TaskListPanelTest : BasePlatformTestCase() {
         // Then the error should be shown and existing tasks preserved
         assertEquals("Status label should show error message", "<html>$errorMessage</html>", taskListPanel.statusLabel.text)
         assertTrue("Status label should be visible", taskListPanel.statusLabel.isVisible)
+
+        // FIXME this is slightly flaky, it sometimes fails saying:
+        //      junit.framework.AssertionFailedError: Task list should preserve existing tasks expected:<1> but was:<0>
         assertEquals("Task list should preserve existing tasks", 1, taskListPanel.taskList.model.size)
+
         assertEquals("Initial task should still be present", exampleTask, taskListPanel.taskList.model.getElementAt(0))
     }
 }

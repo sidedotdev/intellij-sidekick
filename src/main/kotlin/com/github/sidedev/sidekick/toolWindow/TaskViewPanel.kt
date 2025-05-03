@@ -34,20 +34,21 @@ class TaskViewPanel(
     companion object {
         const val NAME = "TaskView"
         private const val RECONNECT_DELAY_MS = 1000L
-        private const val MAX_PARENT_TRAVERSAL_DEPTH = 20
-        
+
         // Section category constants
-        internal const val CATEGORY_REQUIREMENTS_PLANNING = "requirements-planning"
-        internal const val CATEGORY_CODING = "coding"
-        internal const val CATEGORY_UNCATEGORIZED = "uncategorized"
-        private const val LLM_STEP_PREFIX = "llm_step:"
-        
+        internal const val SECTION_REQUIREMENTS_PLANNING = "requirements-planning"
+        internal const val SECTION_CODING = "coding"
+        internal const val SECTION_UNKNOWN = "uncategorized"
+
         // Subflow type constants  
+        private const val TYPE_MISSING_TYPE = "missing_type"
         private const val TYPE_DEV_REQUIREMENTS = "dev_requirements"
         private const val TYPE_DEV_PLAN = "dev_plan"
         private const val TYPE_LLM_STEP = "llm_step"
+        private const val TYPE_CODING = "coding"
     }
 
+    private val cachedSubflows = mutableMapOf<String, Subflow>()
     private var flowActionSession: FlowActionSession? = null
     private val coroutineScope = CoroutineScope(dispatcher + Job())
     private val contentPanel = JBPanel<JBPanel<*>>().apply {
@@ -57,56 +58,68 @@ class TaskViewPanel(
     private var isUserScrolling = false
     private var shouldAutoScroll = true
     private val taskSections = mutableMapOf<String, TaskSection>()
-    private val trackedSubflowIds = mutableSetOf<String>()
     
     // Tracks if we've seen requirements and planning subflows to update section name
-    private var hasRequirementsSubflow = false
-    private var hasPlanningSubflow = false
+    internal var hasRequirementsSubflow = false
+    internal var hasPlanningSubflow = false
 
     /**
-     * Determines the appropriate section category for a subflow based on its type and ancestry
+     * Determines the appropriate section id for a subflow based on
+     * its type or its ancestor's type
      */
-    internal suspend fun determineSubflowCategory(subflow: Subflow): String {
+    internal suspend fun determineSectionId(subflow: Subflow): String {
         val type = findRelevantSubflowType(subflow)
         return when (type) {
-            TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN -> CATEGORY_REQUIREMENTS_PLANNING
-            TYPE_LLM_STEP -> "$LLM_STEP_PREFIX${subflow.id}"
-            else -> CATEGORY_CODING
+            TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN -> SECTION_REQUIREMENTS_PLANNING
+            TYPE_LLM_STEP -> subflow.name
+            TYPE_CODING -> SECTION_CODING
+            else -> SECTION_UNKNOWN
         }
     }
 
     /**
      * Traverses parent subflows to find a relevant type for categorization
      */
-    internal suspend fun findRelevantSubflowType(subflow: Subflow, depth: Int = 0): String? {
-        if (depth >= MAX_PARENT_TRAVERSAL_DEPTH) return null
-        
+    internal suspend fun findRelevantSubflowType(subflow: Subflow): String {
         // Check current subflow type
-        subflow.type?.let { return it }
+        subflow.type?.let {
+            when (it) {
+                TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN, TYPE_LLM_STEP, TYPE_CODING,
+                     -> return it
+                else -> Unit
+            }
+        }
         
         // Traverse parent if exists
-        val parentId = subflow.parentSubflowId ?: return null
-        return sidekickService.getSubflow(task.workspaceId, parentId)
-            .map { parent -> findRelevantSubflowType(parent, depth + 1) }
-            .getOrNull()
+        val parentId = subflow.parentSubflowId ?: return TYPE_MISSING_TYPE
+         getSubflow(parentId).getOrNull()
+
+        val parentSubflow = getSubflow(parentId).getOrNull()
+        return if (parentSubflow == null) {
+            // TODO make a visible error message for this?
+            logger.error("failed to get subflow with id: $parentId")
+            return TYPE_MISSING_TYPE
+        } else {
+            findRelevantSubflowType(parentSubflow)
+        }
     }
 
     /**
-     * Gets the display name for a section based on its category
+     * Gets the display name for a section based on its section id
      */
-    internal fun getSectionName(category: String): String {
-        return when {
-            category == CATEGORY_REQUIREMENTS_PLANNING -> {
+    internal fun getSectionName(sectionId: String): String {
+        return when (sectionId) {
+            SECTION_REQUIREMENTS_PLANNING -> {
                 when {
                     hasRequirementsSubflow && hasPlanningSubflow -> "Requirements and Planning"
                     hasRequirementsSubflow -> "Requirements"
                     hasPlanningSubflow -> "Planning"
-                    else -> "Requirements and Planning" // Default if type not yet known
+                    else -> "Requirements/Planning" // shouldn't really happen
                 }
             }
-            category == CATEGORY_CODING -> "Coding"
-            category.startsWith(LLM_STEP_PREFIX) -> "Step ${category.substringAfter(LLM_STEP_PREFIX)}"
-            else -> "Uncategorized"
+            SECTION_CODING -> "Coding"
+            SECTION_UNKNOWN -> "Unknown"
+            else -> sectionId
         }
     }
 
@@ -186,57 +199,91 @@ class TaskViewPanel(
     }
 
     private suspend fun handleFlowAction(flowAction: FlowAction) {
-        flowAction.subflowId?.let { subflowId ->
-            if (!trackedSubflowIds.contains(subflowId)) {
-                trackedSubflowIds.add(subflowId)
+        val actionComponent = FlowActionComponent(flowAction)
 
-                // Fetch subflow details and create section
-                val subflowResponse = sidekickService.getSubflow(task.workspaceId, subflowId)
-                subflowResponse.map { subflow ->
-                    ApplicationManager.getApplication().invokeLater {
-                        var section: TaskSection? = null
-                        synchronized(taskSections) {
-                            if (!taskSections.containsKey(subflowId)) {
-                                section = TaskSection(subflow.name)
-                                taskSections[subflowId] = section!!
-                            }
-                        }
-                        if (section != null) {
-                            contentPanel.add(section)
-                            contentPanel.add(Box.createVerticalStrut(8))
-                            contentPanel.revalidate()
-                            contentPanel.repaint()
-                        }
-                    }
-                }
-                subflowResponse.mapError { e ->
-                    logger.error(Exception("OMG 123: " + e.error))
-                    // FIXME handle non-connection error by rendering on a secondary error label
+        // Handle uncategorized actions first
+        if (flowAction.subflowId == null) {
+            ApplicationManager.getApplication().invokeLater {
+                // Add to last section if it exists and isn't requirements/planning
+                val lastSection = taskSections.values.lastOrNull()
+                if (lastSection != null && taskSections.keys.last() != SECTION_REQUIREMENTS_PLANNING) {
+                    lastSection.addFlowAction(actionComponent)
+                    lastSection.revalidate()
+                    lastSection.repaint()
+                } else {
+                    // Add directly to content panel if no suitable section exists
+                    contentPanel.add(actionComponent)
+                    contentPanel.add(Box.createVerticalStrut(8))
+                    contentPanel.revalidate()
+                    contentPanel.repaint()
                 }
             }
+            return
         }
 
+        // For categorized actions, get subflow details first
+        val subflowId = flowAction.subflowId
+        val subflow = getSubflow(subflowId).getOrNull()
+        if (subflow == null) {
+            // TODO make a visible error message for this?
+            logger.error("failed to get subflow with id: $subflowId")
+            return
+        }
+
+        // Update requirements/planning tracking variables, used only for
+        // determining the title of that section
+        when (subflow.type) {
+            TYPE_DEV_REQUIREMENTS -> hasRequirementsSubflow = true
+            TYPE_DEV_PLAN -> hasPlanningSubflow = true
+        }
+
+        val sectionId = determineSectionId(subflow)
+
+        // Create section if needed
+        // Add flow action to the appropriate section
         ApplicationManager.getApplication().invokeLater {
-            val actionComponent = FlowActionComponent(flowAction)
-            val section = taskSections[flowAction.subflowId]
-            
-            if (section != null) {
-                section.addFlowAction(actionComponent)
-                section.revalidate()
-                section.repaint()
-
-                if (shouldAutoScroll) {
-                    SwingUtilities.invokeLater {
-                        val viewport = scrollPane.viewport
-                        val viewRect = viewport.viewRect
-                        val viewHeight = viewport.view.height
-                        viewport.viewPosition = Point(viewRect.x, viewHeight - viewRect.height)
-                    }
+            val section: TaskSection = synchronized(taskSections) {
+                val existingSection = taskSections[sectionId]
+                if (existingSection != null) {
+                    existingSection
+                } else {
+                    val section = TaskSection(getSectionName(sectionId))
+                    contentPanel.add(section)
+                    contentPanel.add(Box.createVerticalStrut(8))
+                    contentPanel.revalidate()
+                    contentPanel.repaint()
+                    taskSections[sectionId] = section
+                    section
                 }
-            } else {
-                logger.error("Section not found for flow action: ${flowAction.subflowId}")
+            }
+            section.addFlowAction(actionComponent)
+            section.revalidate()
+            section.repaint()
+
+            if (shouldAutoScroll) {
+                SwingUtilities.invokeLater {
+                    val viewport = scrollPane.viewport
+                    val viewRect = viewport.viewRect
+                    val viewHeight = viewport.view.height
+                    viewport.viewPosition = Point(viewRect.x, viewHeight - viewRect.height)
+                }
             }
         }
+    }
+
+    private suspend fun getSubflow(subflowId: String): Result<Subflow> {
+        val cachedSubflow = cachedSubflows[subflowId]
+        if (cachedSubflow != null) {
+            return Result.success(cachedSubflow)
+        }
+
+        // Fetch subflow details and determine category
+        val subflowResponse = sidekickService.getSubflow(task.workspaceId, subflowId)
+        val subflow = subflowResponse.getOrNull()
+        if (subflow != null) {
+            cachedSubflows[subflowId] = subflow
+        }
+        return subflowResponse.asResult()
     }
 
     private fun handleConnectionError(error: Throwable, flowId: String) {
