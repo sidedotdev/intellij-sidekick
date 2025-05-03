@@ -6,6 +6,7 @@ import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.websocket.FlowActionSession
 import com.github.sidedev.sidekick.models.FlowAction
 import com.github.sidedev.sidekick.toolWindow.components.TaskExecutionSection
+import com.github.sidedev.sidekick.toolWindow.components.TaskInputsSection
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
@@ -147,7 +148,7 @@ class TaskViewPanel(
             )
         )
         // FIXME rewrite task inputs section to inherit from accordion section, just like TaskSection does
-        //contentPanel.add(TaskInputsSection(taskRequest))
+        contentPanel.add(TaskInputsSection(taskRequest))
 
         // Configure scroll pane
         scrollPane.apply {
