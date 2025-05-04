@@ -1,4 +1,4 @@
-package com.github.sidedev.sidekick.toolWindow
+package com.github.sidedev.sidekick.toolWindow.components
 
 import com.github.sidedev.sidekick.models.FlowAction
 import com.intellij.ui.components.JBLabel

@@ -5,6 +5,7 @@ import com.github.sidedev.sidekick.api.TaskRequest
 import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.websocket.FlowActionSession
 import com.github.sidedev.sidekick.models.FlowAction
+import com.github.sidedev.sidekick.toolWindow.components.FlowActionComponent
 import com.github.sidedev.sidekick.toolWindow.components.TaskExecutionSection
 import com.github.sidedev.sidekick.toolWindow.components.TaskInputsSection
 import com.intellij.openapi.Disposable

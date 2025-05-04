@@ -2,7 +2,6 @@ package com.github.sidedev.sidekick.toolWindow.components
 
 import com.github.sidedev.sidekick.api.Subflow
 import com.github.sidedev.sidekick.models.FlowAction
-import com.github.sidedev.sidekick.toolWindow.FlowActionComponent
 import com.intellij.util.ui.JBUI
 import javax.swing.BoxLayout
 import javax.swing.JPanel

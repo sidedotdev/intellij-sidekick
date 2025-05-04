@@ -4,7 +4,6 @@ import com.github.sidedev.sidekick.api.Subflow
 import com.github.sidedev.sidekick.api.SubflowStatus
 import com.github.sidedev.sidekick.models.ActionStatus
 import com.github.sidedev.sidekick.models.FlowAction
-import com.github.sidedev.sidekick.toolWindow.FlowActionComponent
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -12,7 +11,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.JsonNull
-import org.junit.Assert.*
 import javax.swing.JPanel
 
 @OptIn(ExperimentalCoroutinesApi::class)
