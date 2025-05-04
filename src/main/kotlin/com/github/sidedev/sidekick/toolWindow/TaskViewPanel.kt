@@ -84,7 +84,7 @@ class TaskViewPanel(
         // Check current subflow type
         subflow.type?.let {
             when (it) {
-                TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN, TYPE_LLM_STEP, TYPE_CODING,
+                TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN, TYPE_LLM_STEP, TYPE_CODING
                      -> return subflow
                 else -> Unit
             }
@@ -212,7 +212,7 @@ class TaskViewPanel(
                     if (maybeGlue?.name == "end_glue") {
                         lastSection.remove(maybeGlue)
                     }
-                    lastSection.addFlowAction(actionComponent)
+                    lastSection.processAction(flowAction, subflow = null)
                     lastSection.add(Box.createVerticalGlue().apply { name = "end_glue" });
                     lastSection.revalidate()
                     lastSection.repaint()
@@ -273,7 +273,9 @@ class TaskViewPanel(
                     section
                 }
             }
-            section.addFlowAction(actionComponent)
+            // Use processAction instead of addFlowAction
+            section.processAction(flowAction, subflow)
+            // Keep revalidate/repaint for now, although processAction handles it for new components
             section.revalidate()
             section.repaint()
 
