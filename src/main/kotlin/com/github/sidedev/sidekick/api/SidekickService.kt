@@ -3,8 +3,7 @@ package com.github.sidedev.sidekick.api
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.github.sidedev.sidekick.api.response.DeleteTaskResponse
-import com.github.sidedev.sidekick.api.websocket.FlowActionSession
-import com.github.sidedev.sidekick.api.websocket.FlowEventsSession
+import com.github.sidedev.sidekick.api.websocket.*
 import com.github.sidedev.sidekick.models.ChatMessageDelta
 import com.github.sidedev.sidekick.models.FlowAction
 import com.intellij.openapi.diagnostic.Logger
@@ -163,5 +162,23 @@ class SidekickService(
         )
         val conn = session.connect(onMessage, onError, onClose)
         return runCatching { conn.await() }.map { session }
+    }
+
+    suspend fun connectToTaskChanges(
+        workspaceId: String,
+        onMessage: suspend (TaskChangesPayload) -> Unit,
+        onError: suspend (Throwable) -> Unit = {},
+        onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> },
+    ): Result<TaskChangesSession> {
+        val session = TaskChangesSession(
+            client = client,
+            baseUrl = baseUrl,
+            workspaceId = workspaceId,
+            dispatcher = dispatcher,
+            logger = logger,
+        )
+        // connect() returns Deferred<Unit>, await() waits for connection setup.
+        // runCatching captures connection errors, .map returns the session on success.
+        return runCatching { session.connect(onMessage, onError, onClose).await() }.map { session }
     }
 }

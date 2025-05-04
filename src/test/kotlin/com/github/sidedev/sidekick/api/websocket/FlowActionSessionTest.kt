@@ -184,6 +184,9 @@ class FlowActionSessionTest {
     }
 
     private fun waitForMessageProcessing() {
+        // HACK: Thread.sleep is required instead of advanceUntilIdle because the
+        // mock web server is not in any coroutine scope. Unfortunately, we can't
+        // work around this any other way without a lot of work
         Thread.sleep(200)
     }
 }
