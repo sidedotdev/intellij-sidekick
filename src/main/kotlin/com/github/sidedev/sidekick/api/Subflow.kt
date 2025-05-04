@@ -5,8 +5,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class SubflowStatus {
-    @SerialName("in_progress")
-    IN_PROGRESS,
     @SerialName("started")
     STARTED,
     @SerialName("complete")
