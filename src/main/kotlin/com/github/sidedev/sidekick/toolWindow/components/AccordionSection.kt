@@ -69,7 +69,7 @@ open class AccordionSection(
         contentPanel.apply {
             border = JBUI.Borders.empty(8)
             isVisible = expanded
-            add(content, BorderLayout.CENTER)
+            add(content, BorderLayout.NORTH)
         }
         
         // Add components to main panel

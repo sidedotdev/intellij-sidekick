@@ -46,6 +46,7 @@ class TaskViewPanel(
         private const val TYPE_DEV_PLAN = "dev_plan"
         private const val TYPE_LLM_STEP = "llm_step"
         private const val TYPE_CODING = "coding"
+        private const val TYPE_PASS_TESTS = "pass_tests"
     }
 
     private val cachedSubflows = mutableMapOf<String, Subflow>()
@@ -71,7 +72,7 @@ class TaskViewPanel(
         val primarySubflow = findPrimarySubflow(subflow)
         return when (primarySubflow?.type) {
             TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN -> SECTION_REQUIREMENTS_PLANNING
-            TYPE_LLM_STEP -> primarySubflow.name
+            TYPE_LLM_STEP, TYPE_PASS_TESTS -> primarySubflow.name
             TYPE_CODING -> SECTION_CODING
             else -> SECTION_UNKNOWN
         }
@@ -84,7 +85,7 @@ class TaskViewPanel(
         // Check current subflow type
         subflow.type?.let {
             when (it) {
-                TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN, TYPE_LLM_STEP, TYPE_CODING
+                TYPE_DEV_REQUIREMENTS, TYPE_DEV_PLAN, TYPE_LLM_STEP, TYPE_CODING, TYPE_PASS_TESTS
                      -> return subflow
                 else -> Unit
             }
