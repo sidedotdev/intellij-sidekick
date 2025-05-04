@@ -11,8 +11,13 @@ import javax.swing.border.EmptyBorder
 import javax.swing.border.MatteBorder
 
 class FlowActionComponent(
-    private val flowAction: FlowAction
+    private var flowAction: FlowAction // Changed to var
 ) : JBPanel<FlowActionComponent>(BorderLayout()) {
+
+    // Properties to hold the labels for updating
+    private lateinit var actionTypeLabel: JBLabel
+    private lateinit var actionResultLabel: JBLabel
+
     init {
         alignmentY = JComponent.TOP_ALIGNMENT
         // Create a compound border with a line on top and padding
@@ -21,14 +26,28 @@ class FlowActionComponent(
             EmptyBorder(8, 8, 8, 8)
         )
 
-        // Add action type label
-        add(JBLabel(flowAction.actionType).apply {
+        // Create and store action type label
+        actionTypeLabel = JBLabel(flowAction.actionType).apply {
             font = font.deriveFont(font.style or java.awt.Font.BOLD)
-        }, BorderLayout.NORTH)
+        }
+        add(actionTypeLabel, BorderLayout.NORTH)
 
-        // Add action result
-        add(JBLabel(flowAction.actionResult).apply {
+        // Create and store action result label
+        actionResultLabel = JBLabel(flowAction.actionResult).apply {
             border = JBUI.Borders.empty(4, 0, 0, 0)
-        }, BorderLayout.CENTER)
+        }
+        add(actionResultLabel, BorderLayout.CENTER)
+    }
+
+    /**
+     * Updates the component to display the data from the new FlowAction.
+     */
+    fun update(newFlowAction: FlowAction) {
+        this.flowAction = newFlowAction
+        actionTypeLabel.text = newFlowAction.actionType
+        actionResultLabel.text = newFlowAction.actionResult
+        // Request layout and repaint updates
+        revalidate()
+        repaint()
     }
 }
