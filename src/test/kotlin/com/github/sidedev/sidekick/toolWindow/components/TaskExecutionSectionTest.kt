@@ -133,13 +133,20 @@ class TaskExecutionSectionTest : BasePlatformTestCase() {
         // Given an empty section
         assertEquals(0, contentPanel.componentCount)
         assertTrue(taskExecutionSection.flowActionComponents.isEmpty())
+        assertTrue(taskExecutionSection.subflowSummaries.isEmpty())
 
         // When processing an action associated with a 'code_context' subflow
-        taskExecutionSection.processAction(sampleFlowAction1, codeContextSubflow)
+        val codeContextAction = sampleFlowAction1.copy(subflowId = codeContextSubflow.id)
+        taskExecutionSection.processAction(codeContextAction, codeContextSubflow)
 
-        // Then no component should be added
-        assertEquals(0, contentPanel.componentCount)
-        assertTrue(taskExecutionSection.flowActionComponents.isEmpty())
+        // Then a SubflowSummaryComponent should be added to the content panel,
+        // but no FlowActionComponent should be tracked in flowActionComponents.
+        assertEquals(1, contentPanel.componentCount)
+        assertTrue(contentPanel.getComponent(0) is SubflowSummaryComponent)
+        assertTrue(taskExecutionSection.flowActionComponents.isEmpty()) // No FlowActionComponent
+        assertEquals(1, taskExecutionSection.subflowSummaries.size) // One SubflowSummaryComponent
+        assertNotNull(taskExecutionSection.subflowSummaries[codeContextSubflow.id])
+        assertSame(contentPanel.getComponent(0), taskExecutionSection.subflowSummaries[codeContextSubflow.id])
     }
 
      fun `test processAction handles multiple distinct actions`() = runTest(testDispatcher) {
