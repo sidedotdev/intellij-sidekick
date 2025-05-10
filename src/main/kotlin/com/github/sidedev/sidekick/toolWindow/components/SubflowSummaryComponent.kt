@@ -19,22 +19,24 @@ import javax.swing.JPanel
  */
 class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout()) {
 
-    private val primaryLabel = JBLabel()
-    private val secondaryLabel = JBLabel()
-    private val loadingIcon = AnimatedIcon.Default() // The animated icon itself
-    private val iconLabel = JBLabel(loadingIcon)    // JBLabel to host the icon
+    internal val primaryLabel = JBLabel()
+    internal val secondaryLabel = JBLabel()
+    internal val loadingIcon = AnimatedIcon.Default() // The animated icon itself
+    internal val loadingIconContainer = JBLabel(loadingIcon)    // JBLabel to
+    // host the
+    // icon
 
     // Panel to hold the icon and secondary text horizontally
-    private val secondaryContentPanel = JPanel().apply {
+    internal val secondaryContentPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.X_AXIS)
         isOpaque = false // Inherit background from parent
         border = JBUI.Borders.emptyTop(2) // Add slight space above secondary line
-        add(iconLabel) // Add the label hosting the icon
+        add(loadingIconContainer) // Add the label hosting the icon
         add(JBUI.Borders.emptyLeft(4).wrap(secondaryLabel)) // Space between icon and text
     }
 
     // Main content panel using BoxLayout for vertical arrangement
-    private val contentPanel = JPanel().apply {
+    internal val contentPanel = JPanel().apply {
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
         isOpaque = false // Inherit background from parent
         // Consistent padding with other components if necessary, adjust as needed
@@ -50,7 +52,7 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
         primaryLabel.text = "Finding Relevant Code"
         secondaryLabel.text = "Thinking..."
         secondaryContentPanel.isVisible = true
-        iconLabel.isVisible = true // Use iconLabel for visibility
+        loadingIconContainer.isVisible = true // Use loadingIconContainer for visibility
     }
 
     /**
@@ -71,7 +73,7 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
         // 2. Update Secondary Line (Visibility and Content) based on Subflow Status
         if (subflow.status == SubflowStatus.STARTED) {
             secondaryContentPanel.isVisible = true
-            iconLabel.isVisible = true // Ensure icon is visible when panel is
+            loadingIconContainer.isVisible = true // Ensure icon is visible when panel is
 
             // Determine secondary text based on the latest non-terminal action
             val actionType = latestNonTerminalAction?.actionType
@@ -99,7 +101,7 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
         } else {
             // Hide secondary line when subflow is not in a running state
             secondaryContentPanel.isVisible = false
-            iconLabel.isVisible = false // Use iconLabel for visibility
+            loadingIconContainer.isVisible = false // Use loadingIconContainer for visibility
         }
 
         // Ensure UI updates are reflected
