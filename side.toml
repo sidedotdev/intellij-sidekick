@@ -25,8 +25,14 @@ exceptions may be necessary, eg when an error is unrecoverable. It can sometimes
 acceptable to use exceptions when the exception is meant to never happen in
 practice, and indicates a program error, but do this sparingly.
 
+### Testing
+
 Most tests dealing with coroutines use UnconfinedTestDispatcher, so advanceUntilIdle
 should not be used typically.
+
+Tests of components shoud typically extend BasePlatformTestCase, which is a subclass of a junit TestCase. So use junit assertions that are inherited from that. Don't use @Before but instead override setUp method. And don't use @Test but instead start test method names with the word "test".
+
+To make child components testable, make them internal instead of private, so unit tests can access them.
 """
 
 [[test_commands]]
