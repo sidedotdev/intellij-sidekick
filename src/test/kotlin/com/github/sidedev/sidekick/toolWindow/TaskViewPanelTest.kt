@@ -10,6 +10,7 @@ import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBTextArea
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,17 +48,17 @@ class TaskViewPanelTest : BasePlatformTestCase() {
     }
 
     fun testPanelDisplaysTaskDescription() {
-        // Find the JBLabel component that displays the description
-        val expectedHtmlDescription = "<html>${testTask.description?.replace("\n", "<br>")}</html>"
-        val descriptionValueLabel = findComponentsOfType(taskViewPanel, JBLabel::class.java)
-            .find { it.text == expectedHtmlDescription }
+        // Find the JBTextArea component that displays the description
+        val descriptionArea = findComponentsOfType(taskViewPanel, JBTextArea::class.java)
+            .find { it.text == testTask.description }
 
-        assertNotNull("Description value label should exist with HTML content", descriptionValueLabel)
+        assertNotNull("Description text area should exist", descriptionArea)
         assertEquals(
-            "Label should display task description (HTML formatted)",
-            expectedHtmlDescription,
-            descriptionValueLabel!!.text
+            "Text area should display task description",
+            testTask.description,
+            descriptionArea!!.text
         )
+        assertFalse("Text area should not be editable", descriptionArea.isEditable)
     }
 
     private fun <T : Component> findComponentsOfType(container: Component, type: Class<T>): List<T> {

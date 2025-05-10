@@ -3,6 +3,7 @@ package com.github.sidedev.sidekick.toolWindow.components
 import com.github.sidedev.sidekick.api.TaskRequest
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.GridBagConstraints
@@ -55,10 +56,16 @@ class TaskInputsSection(taskRequest: TaskRequest) : AccordionSection(
             contentPanel.add(JBLabel("<html><b>Description:</b></html>"), gbc)
             gbc.gridy++
 
-            // Add Description Value (with wrapping)
-            val descriptionText = taskRequest.description?.replace("\n", "<br>") ?: "Not specified"
-            val descriptionValueLabel = JBLabel("<html>$descriptionText</html>")
-            contentPanel.add(descriptionValueLabel, gbc)
+            // Add Description Value
+            val descriptionText = taskRequest.description ?: "Not specified"
+            val descriptionArea = JBTextArea(descriptionText).apply {
+                isEditable = false
+                lineWrap = true
+                wrapStyleWord = true
+                background = contentPanel.background
+                border = null
+            }
+            contentPanel.add(descriptionArea, gbc)
             gbc.gridy++
 
             addLabeledValue("Status", taskRequest.status)
