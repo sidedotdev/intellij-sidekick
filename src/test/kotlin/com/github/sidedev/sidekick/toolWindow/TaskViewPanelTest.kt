@@ -48,10 +48,16 @@ class TaskViewPanelTest : BasePlatformTestCase() {
 
     fun testPanelDisplaysTaskDescription() {
         // Find the JBLabel component that displays the description
-        val descriptionLabel = findComponentsOfType(taskViewPanel, JBLabel::class.java)
-            .find { it.text == testTask.description }
-        assertNotNull("Description label should exist", descriptionLabel)
-        assertEquals("Label should display task description", testTask.description, descriptionLabel!!.text)
+        val expectedHtmlDescription = "<html>${testTask.description?.replace("\n", "<br>")}</html>"
+        val descriptionValueLabel = findComponentsOfType(taskViewPanel, JBLabel::class.java)
+            .find { it.text == expectedHtmlDescription }
+
+        assertNotNull("Description value label should exist with HTML content", descriptionValueLabel)
+        assertEquals(
+            "Label should display task description (HTML formatted)",
+            expectedHtmlDescription,
+            descriptionValueLabel!!.text
+        )
     }
 
     private fun <T : Component> findComponentsOfType(container: Component, type: Class<T>): List<T> {

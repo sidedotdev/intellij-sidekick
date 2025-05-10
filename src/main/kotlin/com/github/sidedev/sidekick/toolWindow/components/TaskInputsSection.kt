@@ -51,7 +51,16 @@ class TaskInputsSection(taskRequest: TaskRequest) : AccordionSection(
                 gbc.gridy++
             }
 
-            addLabeledValue("Description", taskRequest.description)
+            // Add Description Label
+            contentPanel.add(JBLabel("<html><b>Description:</b></html>"), gbc)
+            gbc.gridy++
+
+            // Add Description Value (with wrapping)
+            val descriptionText = taskRequest.description?.replace("\n", "<br>") ?: "Not specified"
+            val descriptionValueLabel = JBLabel("<html>$descriptionText</html>")
+            contentPanel.add(descriptionValueLabel, gbc)
+            gbc.gridy++
+
             addLabeledValue("Status", taskRequest.status)
             addLabeledValue("Agent Type", taskRequest.agentType)
             addLabeledValue("Flow Type", taskRequest.flowType)

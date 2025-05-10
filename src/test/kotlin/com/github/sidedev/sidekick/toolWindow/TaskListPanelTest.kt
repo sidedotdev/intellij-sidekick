@@ -11,7 +11,6 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
@@ -64,10 +63,12 @@ class TaskListPanelTest : BasePlatformTestCase() {
     fun testNewTaskButtonTriggersCallback() = runTest(testDispatcher) {
         // Given an empty task list
         taskListPanel.replaceTasks(emptyList())
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // When clicking the New Task button
         assertTrue("New Task button should be visible", taskListPanel.newTaskButton.isVisible)
         taskListPanel.newTaskButton.doClick()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // Then the callback should be invoked
         assertTrue("New Task callback should be invoked", newTaskCallbackInvoked)
@@ -79,6 +80,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
         // When updating the task list
         taskListPanel.replaceTasks(tasks)
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // Then the task list should be visible and empty state hidden
         assertTrue("Task list should be visible", taskListPanel.taskList.isVisible)
@@ -103,9 +105,7 @@ class TaskListPanelTest : BasePlatformTestCase() {
         coEvery { sidekickService.getTasks("test-workspace") } returns ApiResponse.Success(tasks)
 
         // When refreshing the task list
-        runBlocking(testDispatcher) {
-            taskListPanel.refreshTaskList()
-        }
+        taskListPanel.refreshTaskList()
 
         // Then the tasks should be updated and status label hidden
         assertEquals("Task list should have correct number of items", 1, taskListPanel.taskList.model.size)
