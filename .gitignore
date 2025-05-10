@@ -3,4 +3,5 @@
 .intellijPlatform
 .qodana
 .kotlin
+*.hprof
 build
