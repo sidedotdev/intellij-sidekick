@@ -14,7 +14,10 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.jetbrains.annotations.NotNull
 import java.awt.CardLayout
 import com.github.sidedev.sidekick.api.Task
@@ -59,6 +62,7 @@ class SidekickToolWindow(
     private val sidekickService: SidekickService = SidekickService(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    private val scope = CoroutineScope(dispatcher + SupervisorJob())
     private val taskListModel = TaskListModel()
     private lateinit var cardLayout: CardLayout
     internal lateinit var contentPanel: JBPanel<JBPanel<*>>
@@ -159,6 +163,10 @@ class SidekickToolWindow(
     fun showTaskList() {
         val workspaceId = getCachedWorkspaceId()
         if (workspaceId != null) {
+            // Refresh the task list when it's displayed.
+            scope.launch {
+                refreshTaskList()
+            }
             cardLayout.show(contentPanel, TaskListPanel.NAME)
         } else {
             cardLayout.show(contentPanel, LoadingPanel.NAME)
