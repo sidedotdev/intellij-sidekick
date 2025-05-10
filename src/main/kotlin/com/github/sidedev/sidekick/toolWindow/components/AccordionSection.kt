@@ -3,11 +3,8 @@ package com.github.sidedev.sidekick.toolWindow.components
 import com.intellij.icons.AllIcons
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
-import com.intellij.ui.util.maximumHeight
-import com.intellij.ui.util.preferredHeight
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
-import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.event.MouseAdapter
@@ -33,7 +30,7 @@ open class AccordionSection(
     private val expandIcon: Icon = AllIcons.General.ChevronRight
     private val collapseIcon: Icon = AllIcons.General.ChevronDown
     
-    private val headerBorder: Border = (JBUI.Borders.compound(
+    private val sectionBorder: Border = (JBUI.Borders.compound(
         JBUI.Borders.customLine(
             JBUI.CurrentTheme.DefaultTabs.borderColor() 
                 ?: JBUI.CurrentTheme.Label.foreground()
@@ -52,7 +49,6 @@ open class AccordionSection(
         headerLabel = JBLabel(title).apply {
             icon = if (expanded) collapseIcon else expandIcon
             cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-            border = headerBorder
             maximumSize = Dimension(MAX_WIDTH, 10)
             minimumSize = Dimension(16, 10)
             alignmentX = JComponent.LEFT_ALIGNMENT
@@ -67,7 +63,7 @@ open class AccordionSection(
         
         // Configure content panel
         contentPanel.apply {
-            border = JBUI.Borders.empty(8)
+            border = sectionBorder
             isVisible = expanded
             add(content, BorderLayout.NORTH)
         }

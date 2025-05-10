@@ -111,7 +111,6 @@ class SidekickToolWindow(
                 created = kotlinx.datetime.Clock.System.now(),
                 updated = kotlinx.datetime.Clock.System.now()
             ),
-            onAllTasksClick = { showTaskList() }
         )
         contentPanel.add(taskViewPanel, TaskViewPanel.NAME)
 
@@ -135,7 +134,6 @@ class SidekickToolWindow(
             onTaskSelected = { task ->
                 taskViewPanel = TaskViewPanel(
                     task = task,
-                    onAllTasksClick = { showTaskList() }
                 )
                 contentPanel.add(taskViewPanel, TaskViewPanel.NAME)
                 cardLayout.show(contentPanel, TaskViewPanel.NAME)
@@ -177,7 +175,6 @@ class SidekickToolWindow(
         contentPanel.remove(taskViewPanel)
         taskViewPanel = TaskViewPanel(
             task = task,
-            onAllTasksClick = { showTaskList() }
         )
         contentPanel.add(taskViewPanel, TaskViewPanel.NAME)
         cardLayout.show(contentPanel, TaskViewPanel.NAME)

@@ -56,8 +56,7 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
     }
 
     /**
-     * Updates the component's display based on the latest non-terminal action
-     * and the overall subflow status.
+     * Updates the component's display based on the latest action and the overall subflow status.
      *
      * @param latestNonTerminalAction The most recent action whose status is not terminal (e.g., not COMPLETE or FAILED). Can be null.
      * @param subflow The current state of the Subflow being summarized.

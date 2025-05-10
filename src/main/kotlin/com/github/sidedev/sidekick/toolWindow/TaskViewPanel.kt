@@ -11,22 +11,20 @@ import com.github.sidedev.sidekick.toolWindow.components.TaskInputsSection
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.util.ui.JBUI
 import kotlinx.coroutines.*
 import java.awt.BorderLayout
-import java.awt.Cursor
 import java.awt.Point
 import javax.swing.Box
 import javax.swing.BoxLayout
 import javax.swing.SwingUtilities
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.util.ui.JBUI
+import javax.swing.border.EmptyBorder
 
 class TaskViewPanel(
     private val task: Task,
-    private val onAllTasksClick: () -> Unit,
     private val sidekickService: SidekickService = SidekickService(),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val logger: Logger = logger<TaskViewPanel>(),
@@ -54,6 +52,7 @@ class TaskViewPanel(
     private var flowActionSession: FlowActionSession? = null
     private val coroutineScope = CoroutineScope(dispatcher + Job())
     private val contentPanel = JBPanel<JBPanel<*>>().apply {
+        border = EmptyBorder(JBUI.insets(5))
         layout = BoxLayout(this, BoxLayout.Y_AXIS)
     }
     private val scrollPane = JBScrollPane()
@@ -126,17 +125,6 @@ class TaskViewPanel(
     }
 
     init {
-        // Create and configure the "All Tasks" link
-        val allTasksLink = JBLabel("<html><u>All Tasks</u></html>").apply {
-            cursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-            border = JBUI.Borders.empty(8)
-            addMouseListener(object : java.awt.event.MouseAdapter() {
-                override fun mouseClicked(e: java.awt.event.MouseEvent) {
-                    onAllTasksClick()
-                }
-            })
-        }
-
         // Add task inputs section
         val taskRequest = TaskRequest(
             description = task.description,
@@ -149,7 +137,6 @@ class TaskViewPanel(
                 envType = task.flowOptions?.get("envType")?.toString()
             )
         )
-        // FIXME rewrite task inputs section to inherit from accordion section, just like TaskSection does
         contentPanel.add(TaskInputsSection(taskRequest))
 
         // Configure scroll pane
@@ -170,7 +157,6 @@ class TaskViewPanel(
         }
 
         // Add other components to the panel
-        add(allTasksLink, BorderLayout.NORTH)
         add(scrollPane, BorderLayout.CENTER)
 
         // connect to flow actions if we have a flow

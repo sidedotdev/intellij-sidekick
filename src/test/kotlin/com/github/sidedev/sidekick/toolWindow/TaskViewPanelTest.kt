@@ -23,7 +23,6 @@ import java.awt.event.MouseEvent
 class TaskViewPanelTest : BasePlatformTestCase() {
     private lateinit var taskViewPanel: TaskViewPanel
     private lateinit var testTask: Task
-    private var allTasksClicked = false
     private lateinit var sidekickService: SidekickService
 
     override fun setUp() {
@@ -38,11 +37,9 @@ class TaskViewPanelTest : BasePlatformTestCase() {
             created = Clock.System.now(),
             updated = Clock.System.now(),
         )
-        allTasksClicked = false
         sidekickService = mockk()
         taskViewPanel = TaskViewPanel(
             task = testTask,
-            onAllTasksClick = { allTasksClicked = true },
             sidekickService = sidekickService
         )
     }
@@ -82,29 +79,6 @@ class TaskViewPanelTest : BasePlatformTestCase() {
         assertNotNull("Panel should have a scroll pane", scrollPane)
     }
 
-    fun testAllTasksLinkExists() {
-        // Initially not clicked
-        assertFalse("All Tasks link should not be clicked initially", allTasksClicked)
-        
-        // Find and simulate click on the link
-        val allTasksLink = findComponentOfType(taskViewPanel, JBLabel::class.java)
-        assertNotNull("All Tasks link should exist", allTasksLink)
-        assertTrue("All Tasks link should be visible", allTasksLink!!.isVisible)
-        assertEquals("Link should show 'All Tasks'", "<html><u>All Tasks</u></html>", allTasksLink.text)
-        
-        // Simulate click and verify callback was invoked
-        allTasksLink.dispatchEvent(MouseEvent(
-            allTasksLink,
-            MouseEvent.MOUSE_CLICKED,
-            System.currentTimeMillis(),
-            0,
-            0,
-            0,
-            1,
-            false
-        ))
-        assertTrue("All Tasks click callback should be invoked", allTasksClicked)
-    }
 
     private fun <T : Component> findComponentOfType(container: Component, type: Class<T>): T? {
         if (type.isInstance(container)) {
