@@ -16,6 +16,8 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.awt.BorderLayout
 import java.awt.Point
 import javax.swing.Box
@@ -35,6 +37,7 @@ class TaskViewPanel(
     companion object {
         const val NAME = "TaskView"
         private const val RECONNECT_DELAY_MS = 1000L
+        private const val DEBOUNCE_DELAY_MS = 100L
 
         // Section category constants
         internal const val SECTION_REQUIREMENTS_PLANNING = "requirements-planning"
@@ -49,6 +52,9 @@ class TaskViewPanel(
         private const val TYPE_CODING = "coding"
         private const val TYPE_PASS_TESTS = "pass_tests"
     }
+
+    private val debounceMutex = Mutex()
+    private val debounceJobs = mutableMapOf<String, Job>()
 
     private val cachedSubflows = mutableMapOf<String, Subflow>()
     private var flowActionSession: FlowActionSession? = null
@@ -205,6 +211,19 @@ class TaskViewPanel(
         }
     }
 
+    private fun connectToFlowEvents(parentId: String) {
+        coroutineScope.launch {
+            try {
+                flowEventsSession?.subscribeToParent(parentId)
+                if (flowEventsSession == null) {
+                    logger.error("missing flow events session when trying to connect to flow events")
+                }
+            } catch (e: Exception) {
+                logger.error("failed to get subscribe to flow events for parent id: $parentId")
+            }
+        }
+    }
+
     private suspend fun handleFlowEvent(flowEvent: FlowEvent) {
         // Process the flow event
         ApplicationManager.getApplication().invokeLater {
@@ -214,6 +233,32 @@ class TaskViewPanel(
     }
 
     private suspend fun handleFlowAction(flowAction: FlowAction) {
+        // Process the UI update without debounce
+        processFlowActionUpdate(flowAction)
+
+        debounceMutex.withLock {
+            // Cancel any existing debounce job for this action
+            debounceJobs[flowAction.id]?.cancel()
+
+            // Create new debounce job
+            debounceJobs[flowAction.id] = coroutineScope.launch {
+                try {
+                    delay(DEBOUNCE_DELAY_MS)
+
+                    // If action is non-terminal, subscribe to parent
+                    if (flowAction.actionStatus.isNonTerminal()) {
+                        connectToFlowEvents(flowAction.flowId)
+                    }
+                } finally {
+                    debounceMutex.withLock {
+                        debounceJobs.remove(flowAction.id)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun processFlowActionUpdate(flowAction: FlowAction) {
         val actionComponent = FlowActionComponent(flowAction)
 
         // Handle actions without a subflow first
@@ -343,6 +388,12 @@ class TaskViewPanel(
         coroutineScope.launch {
             flowActionSession?.close()
             flowEventsSession?.close()
+            
+            // Cancel all debounce jobs
+            debounceMutex.withLock {
+                debounceJobs.values.forEach { it.cancel() }
+                debounceJobs.clear()
+            }
         }
         coroutineScope.cancel()
     }

@@ -12,5 +12,7 @@ enum class ActionStatus {
     @SerialName("complete")
     COMPLETE,
     @SerialName("failed")
-    FAILED
+    FAILED;
+
+    fun isNonTerminal(): Boolean = this == PENDING || this == STARTED
 }
