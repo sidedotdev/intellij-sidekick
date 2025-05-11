@@ -1,6 +1,7 @@
 package com.github.sidedev.sidekick.api.websocket
 
 import com.github.sidedev.sidekick.models.ChatMessageDelta // Specific model import
+import com.github.sidedev.sidekick.models.flowEvent.FlowEvent
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.diagnostic.Logger
 import io.ktor.client.HttpClient
@@ -41,12 +42,12 @@ class FlowEventsSession(
      * @return Deferred<Unit> completes successfully on connection, exceptionally on failure.
      */
     fun connect(
-        onMessage: suspend (ChatMessageDelta) -> Unit,
+        onMessage: suspend (FlowEvent) -> Unit,
         onError: suspend (Throwable) -> Unit,
         onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> }
     ): Deferred<Unit> {
         // Call the generic connect method from the base class, specifying the expected message type
-        return super.connectGeneric<ChatMessageDelta>(
+        return super.connectGeneric<FlowEvent>(
             onMessage = onMessage,
             onError = onError,
             onClose = onClose

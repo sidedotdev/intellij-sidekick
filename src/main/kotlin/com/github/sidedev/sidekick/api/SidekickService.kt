@@ -6,6 +6,7 @@ import com.github.sidedev.sidekick.api.response.DeleteTaskResponse
 import com.github.sidedev.sidekick.api.websocket.*
 import com.github.sidedev.sidekick.models.ChatMessageDelta
 import com.github.sidedev.sidekick.models.FlowAction
+import com.github.sidedev.sidekick.models.flowEvent.FlowEvent
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.logger
 import io.ktor.client.HttpClient
@@ -129,7 +130,7 @@ class SidekickService(
     suspend fun connectToFlowEvents(
         workspaceId: String,
         flowId: String,
-        onMessage: suspend (ChatMessageDelta) -> Unit,
+        onMessage: suspend (FlowEvent) -> Unit,
         onError: suspend (Throwable) -> Unit = {},
         onClose: suspend (code: Short, reason: String) -> Unit = { _, _ -> },
     ): Result<FlowEventsSession> {

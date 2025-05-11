@@ -4,6 +4,8 @@ import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.models.ChatMessageDelta
 import com.github.sidedev.sidekick.models.ChatRole
 import com.github.sidedev.sidekick.models.Usage
+import com.github.sidedev.sidekick.models.flowEvent.ChatMessageDeltaEvent
+import com.github.sidedev.sidekick.models.flowEvent.FlowEvent
 import com.intellij.openapi.diagnostic.Logger
 import io.mockk.mockk
 import io.mockk.every
@@ -26,6 +28,10 @@ import kotlin.concurrent.thread
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FlowEventsSessionTest {
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var mockWebServer: MockWebServer
     private lateinit var sidekickService: SidekickService
@@ -95,7 +101,7 @@ class FlowEventsSessionTest {
     fun testSessionConnectionAndMessageHandling() = runTest(testDispatcher) {
         // Given: A test message and WebSocket upgrade response
         mockWebServer.enqueue(MockResponse().withWebSocketUpgrade(serverListener))
-        val testMessage = ChatMessageDelta(
+        val delta = ChatMessageDelta(
             role = ChatRole.ASSISTANT,
             content = "Test message",
             toolCalls = emptyList(),
@@ -119,7 +125,10 @@ class FlowEventsSessionTest {
         assertFalse(messageReceived)
 
         // When: Server sends a message
-        val serverMessage = Json.encodeToString(testMessage)
+        val serverMessage = json.encodeToString(ChatMessageDeltaEvent(
+            flowActionId = "fa_123",
+            chatMessageDelta = delta,
+        ) as FlowEvent)
         val serverWebsocket: WebSocket = serverListener.assertOpen()
 
         serverWebsocket.send(serverMessage)
