@@ -9,7 +9,10 @@ import com.github.sidedev.sidekick.models.flowEvent.FlowEvent
 import com.intellij.openapi.diagnostic.Logger
 import io.mockk.mockk
 import io.mockk.every
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -117,19 +120,33 @@ class FlowEventsSessionTest {
                 onError = { errorOccurred = true },
                 onClose = { _, _ -> connectionClosed = true },
             ).getOrThrow()
-        flowEventsSession.send("doesn't matter, mock web server doesn't care")
+        waitForMessageProcessing()
 
         // Then: Connection is successful
         assertFalse(errorOccurred)
         assertFalse(connectionClosed)
         assertFalse(messageReceived)
+        val serverWebsocket: WebSocket = serverListener.assertOpen()
+
+        // When: Subscribe to parent events
+        val parentId = "parent-123"
+        val subscribeResult = flowEventsSession.subscribeToParent(parentId)
+        assertTrue(subscribeResult.isSuccess())
+
+        // Then: Server received subscription message
+        // NOTE: need to use a future to not block the current thread when the mock
+        // websocket server is polling for nextEvent
+        val future = CoroutineScope(Dispatchers.IO).async {
+            serverListener.assertTextMessage("""{"parentId":"parent-123"}""")
+            waitForMessageProcessing()
+        }
+        future.await()
 
         // When: Server sends a message
         val serverMessage = json.encodeToString(ChatMessageDeltaEvent(
             flowActionId = "fa_123",
             chatMessageDelta = delta,
         ) as FlowEvent)
-        val serverWebsocket: WebSocket = serverListener.assertOpen()
 
         serverWebsocket.send(serverMessage)
 

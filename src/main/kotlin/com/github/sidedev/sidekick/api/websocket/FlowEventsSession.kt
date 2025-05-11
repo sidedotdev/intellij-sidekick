@@ -1,13 +1,15 @@
 package com.github.sidedev.sidekick.api.websocket
 
-import com.github.sidedev.sidekick.models.ChatMessageDelta // Specific model import
 import com.github.sidedev.sidekick.models.flowEvent.FlowEvent
+import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.github.sidedev.sidekick.api.response.ApiError
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.diagnostic.Logger
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.encodeToString
 
 /**
  * Concrete WebSocket session implementation for handling Flow Events.
@@ -41,6 +43,14 @@ class FlowEventsSession(
      * @param onClose Lambda invoked when the connection is closed.
      * @return Deferred<Unit> completes successfully on connection, exceptionally on failure.
      */
+    /**
+     * Subscribes to flow events for a specific parent ID by sending a subscription message.
+     */
+    suspend fun subscribeToParent(parentId: String): ApiResponse<Unit, ApiError> {
+        val message = mapOf("parentId" to parentId)
+        return send(json.encodeToString(message))
+    }
+
     fun connect(
         onMessage: suspend (FlowEvent) -> Unit,
         onError: suspend (Throwable) -> Unit,

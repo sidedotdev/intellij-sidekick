@@ -40,7 +40,7 @@ abstract class SidekickWebSocketSession(
     protected val logger: Logger = logger<SidekickWebSocketSession>(),
 ) {
     // Shared JSON configuration
-    protected open val json: Json = Json { ignoreUnknownKeys = true; prettyPrint = true }
+    protected open val json: Json = Json { ignoreUnknownKeys = true }
 
     // Scope owned by this session instance for managing coroutines (reader job).
     // SupervisorJob ensures failure of one child doesn't cancel others (though we primarily have one main reader job).

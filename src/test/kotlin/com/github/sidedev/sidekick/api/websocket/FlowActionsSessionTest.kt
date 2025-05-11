@@ -26,7 +26,7 @@ import org.junit.Test
 import kotlin.concurrent.thread
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class FlowActionSessionTest {
+class FlowActionsSessionTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var mockWebServer: MockWebServer
     private lateinit var sidekickService: SidekickService
