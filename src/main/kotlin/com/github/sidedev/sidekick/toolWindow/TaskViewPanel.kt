@@ -4,7 +4,9 @@ import com.github.sidedev.sidekick.api.*
 import com.github.sidedev.sidekick.api.TaskRequest
 import com.github.sidedev.sidekick.api.FlowOptions
 import com.github.sidedev.sidekick.api.websocket.FlowActionSession
+import com.github.sidedev.sidekick.api.websocket.FlowEventsSession
 import com.github.sidedev.sidekick.models.FlowAction
+import com.github.sidedev.sidekick.models.flowEvent.FlowEvent
 import com.github.sidedev.sidekick.toolWindow.components.FlowActionComponent
 import com.github.sidedev.sidekick.toolWindow.components.TaskExecutionSection
 import com.github.sidedev.sidekick.toolWindow.components.TaskInputsSection
@@ -50,6 +52,7 @@ class TaskViewPanel(
 
     private val cachedSubflows = mutableMapOf<String, Subflow>()
     private var flowActionSession: FlowActionSession? = null
+    private var flowEventsSession: FlowEventsSession? = null
     private val coroutineScope = CoroutineScope(dispatcher + Job())
     private val contentPanel = JBPanel<JBPanel<*>>().apply {
         border = EmptyBorder(JBUI.insets(5))
@@ -169,7 +172,8 @@ class TaskViewPanel(
     private fun connectToFlowActions(flowId: String) {
         coroutineScope.launch {
             try {
-                val session = sidekickService.connectToFlowActions(
+                // Connect to flow actions
+                val actionSession = sidekickService.connectToFlowActions(
                     workspaceId = task.workspaceId,
                     flowId = flowId,
                     onMessage = { flowAction ->
@@ -180,10 +184,32 @@ class TaskViewPanel(
                     }
                 ).getOrThrow()
                 
-                flowActionSession = session
+                flowActionSession = actionSession
+
+                // Connect to flow events
+                val eventSession = sidekickService.connectToFlowEvents(
+                    workspaceId = task.workspaceId,
+                    flowId = flowId,
+                    onMessage = { flowEvent ->
+                        handleFlowEvent(flowEvent)
+                    },
+                    onError = { error ->
+                        handleConnectionError(error, flowId)
+                    }
+                ).getOrThrow()
+
+                flowEventsSession = eventSession
             } catch (e: Exception) {
                 handleConnectionError(e, flowId)
             }
+        }
+    }
+
+    private suspend fun handleFlowEvent(flowEvent: FlowEvent) {
+        // Process the flow event
+        ApplicationManager.getApplication().invokeLater {
+            logger.info("Processing flow event: $flowEvent")
+            // TODO: Add specific event handling logic here as needed
         }
     }
 
@@ -316,6 +342,7 @@ class TaskViewPanel(
     override fun dispose() {
         coroutineScope.launch {
             flowActionSession?.close()
+            flowEventsSession?.close()
         }
         coroutineScope.cancel()
     }
