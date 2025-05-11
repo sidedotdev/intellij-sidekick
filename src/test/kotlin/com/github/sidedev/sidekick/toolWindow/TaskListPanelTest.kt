@@ -118,8 +118,6 @@ class TaskListPanelTest : BasePlatformTestCase() {
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // pre-condition: if this fails, we aren't waiting for updates to get applied properly
-        // FIXME this is slightly flaky, it sometimes fails saying:
-        //      junit.framework.AssertionFailedError: Task list should be correct initialized before test actions:<1> but was:<0>
         assertEquals("Task list should be correct initialized before test actions", 1, taskListPanel.taskList.model.size)
 
         // And an API error response
@@ -128,11 +126,14 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
         // When refreshing the task list
         taskListPanel.refreshTaskList()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // Then the error should be shown and existing tasks preserved
         assertEquals("Status label should show error message", "<html>$errorMessage</html>", taskListPanel.statusLabel.text)
         assertTrue("Status label should be visible", taskListPanel.statusLabel.isVisible)
 
+        // FIXME this is slightly flaky, it sometimes fails saying:
+        //      junit.framework.AssertionFailedError: Task list should preserve existing tasks:<1> but was:<0>
         assertEquals("Task list should preserve existing tasks", 1, taskListPanel.taskList.model.size)
 
         assertEquals("Initial task should still be present", exampleTask, taskListPanel.taskList.model.getElementAt(0))
