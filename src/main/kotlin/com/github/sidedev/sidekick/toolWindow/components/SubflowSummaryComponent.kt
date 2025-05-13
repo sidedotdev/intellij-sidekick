@@ -7,6 +7,7 @@ import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.util.ui.JBUI
+import kotlinx.serialization.json.JsonElement
 import java.awt.BorderLayout
 import javax.swing.BoxLayout
 import javax.swing.JPanel
@@ -56,55 +57,97 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
     }
 
     /**
-     * Updates the component's display based on the latest action and the overall subflow status.
+     * Updates the component's display based on the current action and subflow status.
      *
-     * @param latestNonTerminalAction The most recent action whose status is not terminal (e.g., not COMPLETE or FAILED). Can be null.
-     * @param subflow The current state of the Subflow being summarized.
+     * @param flowAction The current action being processed, if any
+     * @param subflow The current state of the Subflow being summarized
      */
-    fun update(latestNonTerminalAction: FlowAction?, subflow: Subflow) {
-        // 1. Update Primary Label based on Subflow Status
+    fun update(flowAction: FlowAction?, subflow: Subflow) {
+        // Update primary label based on subflow status
         primaryLabel.text = when (subflow.status) {
             SubflowStatus.STARTED -> "Finding Relevant Code"
             SubflowStatus.COMPLETE -> "Found Relevant Code"
-            SubflowStatus.FAILED -> "Failed to Find Code" // Handle failure case
+            SubflowStatus.FAILED -> "Failed to Find Code"
         }
 
-        // 2. Update Secondary Line (Visibility and Content) based on Subflow Status
+        // Update secondary line visibility and content
         if (subflow.status == SubflowStatus.STARTED) {
             secondaryContentPanel.isVisible = true
-            loadingIconContainer.isVisible = true // Ensure icon is visible when panel is
+            loadingIconContainer.isVisible = true
 
-            // Determine secondary text based on the latest non-terminal action
-            val actionType = latestNonTerminalAction?.actionType
-            val toolCallPrefix = "tool_call."
-
-            val textForSecondaryLabel = if (actionType != null && actionType.startsWith(toolCallPrefix)) {
-                val toolName = actionType.removePrefix(toolCallPrefix)
-                                  .replace('_', ' ') // Replace underscores with spaces
-                                  .trim()          // Trim leading/trailing whitespace
-
-                if (toolName.isEmpty()) {
-                    // If the processed tool name is empty, default to "Thinking..."
-                    "Thinking..."
-                } else {
-                    // Capitalize the first character of the processed tool name
-                    toolName.replaceFirstChar { 
-                        if (it.isLowerCase()) it.titlecase() else it.toString() 
-                    }
-                }
-            } else {
-                // Default text when no specific tool action is active or available, or if not a tool_call
-                "Thinking..."
+            secondaryLabel.text = when {
+                flowAction == null -> "Thinking..."
+                !flowAction.actionType.startsWith("tool_call.") -> "Thinking..."
+                else -> getToolSpecificStatusText(flowAction)
             }
-            secondaryLabel.text = textForSecondaryLabel
         } else {
-            // Hide secondary line when subflow is not in a running state
             secondaryContentPanel.isVisible = false
-            loadingIconContainer.isVisible = false // Use loadingIconContainer for visibility
+            loadingIconContainer.isVisible = false
         }
 
-        // Ensure UI updates are reflected
         revalidate()
         repaint()
+    }
+
+    private fun getToolSpecificStatusText(flowAction: FlowAction): String {
+        val toolName = flowAction.actionType.removePrefix("tool_call.")
+                          .replace('_', ' ') // Replace underscores with spaces
+                          .trim()          // Trim leading/trailing whitespace
+                          .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+
+        return when (toolName.lowercase()) {
+            "retrieve code context" -> getRetrieveCodeContextStatus(flowAction.actionParams)
+            "bulk search repository" -> getBulkSearchRepositoryStatus(flowAction.actionParams)
+            "read file lines" -> getReadFileLinesStatus(flowAction.actionParams)
+            "get help or input" -> "Waiting for input..."
+            else -> toolName // For unknown tools, just show the formatted tool name
+        }
+    }
+
+    private fun getRetrieveCodeContextStatus(params: Map<String, JsonElement>): String {
+        val requests = params["code_context_requests"] ?: return "Looking up code..."
+        val requestsArray = requests.toString()
+        val fileCount = requestsArray.split("file_path").size - 1
+        
+        return if (fileCount > 1) {
+            "Looking up: multiple files"
+        } else if (fileCount == 1) {
+            val fileName = requestsArray.substringAfter("file_path").substringAfter(":").substringBefore(",").trim('"')
+            "Looking up: $fileName"
+        } else {
+            "Looking up code..."
+        }
+    }
+
+    private fun getBulkSearchRepositoryStatus(params: Map<String, JsonElement>): String {
+        val searches = params["searches"] ?: return "Searching..."
+        val searchesStr = searches.toString()
+        
+        // Extract search terms
+        val searchTerms = searchesStr.split("search_term")
+            .drop(1) // Skip the part before first search_term
+            .map { it.substringAfter(":").substringBefore(",").trim('"', ' ', '}', ']') }
+            .filter { it.isNotEmpty() }
+
+        return when {
+            searchTerms.isEmpty() -> "Searching..."
+            searchTerms.size == 1 -> "Searching: ${searchTerms[0]}"
+            else -> "Searching: ${searchTerms[0]} (and ${searchTerms.size - 1} more)"
+        }
+    }
+
+    private fun getReadFileLinesStatus(params: Map<String, JsonElement>): String {
+        val fileLines = params["file_lines"] ?: return "Reading files..."
+        val fileLinesStr = fileLines.toString()
+        
+        val fileCount = fileLinesStr.split("file_path").size - 1
+        return when {
+            fileCount == 0 -> "Reading files..."
+            fileCount == 1 -> {
+                val fileName = fileLinesStr.substringAfter("file_path").substringAfter(":").substringBefore(",").trim('"')
+                "Reading: $fileName"
+            }
+            else -> "Reading: multiple files"
+        }
     }
 }
