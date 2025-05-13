@@ -1,6 +1,7 @@
 package com.github.sidedev.sidekick.toolWindow.components
 
 import com.github.sidedev.sidekick.models.FlowAction
+import com.github.sidedev.sidekick.toolWindow.components.IUpdatableFlowActionPanel
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.util.ui.JBUI
@@ -11,8 +12,8 @@ import javax.swing.border.EmptyBorder
 import javax.swing.border.MatteBorder
 
 class FlowActionComponent(
-    private var flowAction: FlowAction // Changed to var
-) : JBPanel<FlowActionComponent>(BorderLayout()) {
+    internal var flowAction: FlowAction // Changed to var and internal
+) : JBPanel<FlowActionComponent>(BorderLayout()), IUpdatableFlowActionPanel {
 
     // Properties to hold the labels for updating
     private lateinit var actionTypeLabel: JBLabel
@@ -42,7 +43,7 @@ class FlowActionComponent(
     /**
      * Updates the component to display the data from the new FlowAction.
      */
-    fun update(newFlowAction: FlowAction) {
+    override fun update(newFlowAction: FlowAction) {
         this.flowAction = newFlowAction
         actionTypeLabel.text = newFlowAction.actionType
         actionResultLabel.text = newFlowAction.actionResult
