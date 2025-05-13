@@ -7,7 +7,7 @@ import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.Subflow
 import com.github.sidedev.sidekick.api.SubflowStatus
 import com.github.sidedev.sidekick.api.response.ApiResponse
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.UsefulTestCase
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
@@ -20,7 +20,7 @@ import java.awt.Component
 import java.awt.event.MouseEvent
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TaskViewPanelTest : BasePlatformTestCase() {
+class TaskViewPanelTest : UsefulTestCase() {
     private lateinit var taskViewPanel: TaskViewPanel
     private lateinit var testTask: Task
     private lateinit var sidekickService: SidekickService

@@ -2,16 +2,15 @@ package com.github.sidedev.sidekick.toolWindow.components
 
 import com.github.sidedev.sidekick.api.Subflow
 import com.github.sidedev.sidekick.api.SubflowStatus
-import com.github.sidedev.sidekick.models.ActionStatus
-import com.github.sidedev.sidekick.models.FlowAction
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.github.sidedev.sidekick.models.*
+import com.intellij.testFramework.UsefulTestCase
 import com.intellij.ui.AnimatedIcon
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.*
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class SubflowSummaryComponentTest : BasePlatformTestCase() {
+class SubflowSummaryComponentTest : UsefulTestCase() {
 
     private lateinit var component: SubflowSummaryComponent
 
@@ -19,7 +18,8 @@ class SubflowSummaryComponentTest : BasePlatformTestCase() {
     private fun createFlowAction(
         actionType: String = "generic_action",
         actionStatus: ActionStatus = ActionStatus.STARTED,
-        updated: Instant = Clock.System.now()
+        updated: Instant = Clock.System.now(),
+        actionParams: Map<String, JsonElement> = emptyMap()
     ): FlowAction {
         return FlowAction(
             id = "action-${Clock.System.now().toEpochMilliseconds()}",
@@ -29,7 +29,7 @@ class SubflowSummaryComponentTest : BasePlatformTestCase() {
             created = Clock.System.now(),
             updated = updated,
             actionType = actionType,
-            actionParams = emptyMap(),
+            actionParams = actionParams,
             actionStatus = actionStatus,
             actionResult = "",
             isHumanAction = false
@@ -87,24 +87,90 @@ class SubflowSummaryComponentTest : BasePlatformTestCase() {
         assertEquals("Thinking...", component.secondaryLabel.text)
     }
 
-    fun `test update with SubflowStatus STARTED and tool_call action`() {
+    fun `test update with bulk search repository action - single search`() {
         val subflow = createSubflow(status = SubflowStatus.STARTED)
-        val action = createFlowAction(actionType = "tool_call.bulk_search_repository")
+        val toolParams = BulkSearchRepositoryParams(
+            searches = listOf(
+                BulkSearchRepositoryParams.Search(
+                    searchTerm = "findMe",
+                    pathGlob = "*.kt"
+                )
+            )
+        )
+        val params = mapOf("params" to Json.encodeToJsonElement(toolParams))
+        val action = createFlowAction(
+            actionType = "tool_call.bulk_search_repository",
+            actionParams = params
+        )
         component.update(action, subflow)
 
         assertEquals("Finding Relevant Code", component.primaryLabel.text)
         assertTrue(component.secondaryContentPanel.isVisible)
-        assertEquals("Bulk search repository", component.secondaryLabel.text)
+        assertEquals("Searching for: 'findMe' in *.kt", component.secondaryLabel.text)
     }
 
-    fun `test update with SubflowStatus STARTED and another tool_call action`() {
+    fun `test update with bulk search repository action - multiple searches`() {
         val subflow = createSubflow(status = SubflowStatus.STARTED)
-        val action = createFlowAction(actionType = "tool_call.another_tool_example")
+        val toolParams = BulkSearchRepositoryParams(
+            searches = listOf(
+                BulkSearchRepositoryParams.Search(searchTerm = "term1", pathGlob = "*.kt"),
+                BulkSearchRepositoryParams.Search(searchTerm = "term2", pathGlob = "*.java")
+            )
+        )
+        val params = mapOf("params" to Json.encodeToJsonElement(toolParams))
+        val action = createFlowAction(
+            actionType = "tool_call.bulk_search_repository",
+            actionParams = params
+        )
         component.update(action, subflow)
 
         assertEquals("Finding Relevant Code", component.primaryLabel.text)
         assertTrue(component.secondaryContentPanel.isVisible)
-        assertEquals("Another tool example", component.secondaryLabel.text)
+        assertEquals("Searching for: 'term1' in *.kt, 'term2' in *.java", component.secondaryLabel.text)
+    }
+
+    fun `test update with retrieve code context action - single file`() {
+        val subflow = createSubflow(status = SubflowStatus.STARTED)
+        val toolParams = RetrieveCodeContextParams(
+            analysis = "",
+            codeContextRequests = listOf(
+                RetrieveCodeContextParams.CodeContextRequest(
+                    filePath = "src/main/kotlin/MyFile.kt",
+                    symbolNames = listOf("MyClass", "myFunction")
+                )
+            )
+        )
+        val params = mapOf("params" to Json.encodeToJsonElement(toolParams))
+        val action = createFlowAction(
+            actionType = "tool_call.retrieve_code_context",
+            actionParams = params
+        )
+        component.update(action, subflow)
+
+        assertEquals("Finding Relevant Code", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
+        assertEquals("Looking up: src/main/kotlin/MyFile.kt (MyClass, myFunction)", component.secondaryLabel.text)
+    }
+
+    fun `test update with retrieve code context action - multiple files`() {
+        val subflow = createSubflow(status = SubflowStatus.STARTED)
+        val toolParams = RetrieveCodeContextParams(
+            analysis = "",
+            codeContextRequests = listOf(
+                RetrieveCodeContextParams.CodeContextRequest(filePath = "src/main/kotlin/File1.kt"),
+                RetrieveCodeContextParams.CodeContextRequest(filePath = "src/main/kotlin/File2.kt")
+            )
+        )
+        val params = mapOf("params" to Json.encodeToJsonElement(toolParams))
+        val action = createFlowAction(
+            actionType = "tool_call.retrieve_code_context",
+            actionParams = params
+        )
+        component.update(action, subflow)
+
+        assertEquals("Finding Relevant Code", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
+        assertEquals("Looking up: src/main/kotlin/File1.kt, src/main/kotlin/File2.kt", component.secondaryLabel.text)
     }
     
     fun `test update with SubflowStatus STARTED and tool_call action with single word`() {
@@ -132,6 +198,74 @@ class SubflowSummaryComponentTest : BasePlatformTestCase() {
 
         assertEquals("Failed to Find Code", component.primaryLabel.text)
         assertFalse(component.secondaryContentPanel.isVisible)
+    }
+
+    fun `test update with read file lines action - single file`() {
+        val subflow = createSubflow(status = SubflowStatus.STARTED)
+        val toolParams = ReadFileLinesParams(
+            fileLines = listOf(
+                ReadFileLinesParams.FileLine(
+                    filePath = "src/main/kotlin/MyFile.kt",
+                    lineNumber = 42
+                )
+            )
+        )
+        val params = mapOf("params" to Json.encodeToJsonElement(toolParams))
+        val action = createFlowAction(
+            actionType = "tool_call.read_file_lines",
+            actionParams = params
+        )
+        component.update(action, subflow)
+
+        assertEquals("Finding Relevant Code", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
+        assertEquals("Reading: src/main/kotlin/MyFile.kt", component.secondaryLabel.text)
+    }
+
+    fun `test update with read file lines action - multiple files`() {
+        val subflow = createSubflow(status = SubflowStatus.STARTED)
+        val toolParams = ReadFileLinesParams(
+            fileLines = listOf(
+                ReadFileLinesParams.FileLine(filePath = "src/main/kotlin/File1.kt", lineNumber = 10),
+                ReadFileLinesParams.FileLine(filePath = "src/main/kotlin/File2.kt", lineNumber = 20)
+            )
+        )
+        val params = mapOf("params" to Json.encodeToJsonElement(toolParams))
+        val action = createFlowAction(
+            actionType = "tool_call.read_file_lines",
+            actionParams = params
+        )
+        component.update(action, subflow)
+
+        assertEquals("Finding Relevant Code", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
+        assertEquals("Reading: src/main/kotlin/File1.kt, src/main/kotlin/File2.kt", component.secondaryLabel.text)
+    }
+
+    fun `test update with get help or input action`() {
+        val subflow = createSubflow(status = SubflowStatus.STARTED)
+        val toolParams = GetHelpOrInputParams(
+            requests = listOf(
+                GetHelpOrInputParams.Request(
+                    content = "Test request",
+                    selfHelp = GetHelpOrInputParams.Request.SelfHelp(
+                        analysis = "Test analysis",
+                        functions = emptyList(),
+                        alreadyAttemptedTools = emptyList()
+                    )
+                )
+            )
+        )
+        val params = mapOf("params" to Json.encodeToJsonElement(toolParams))
+        val action = createFlowAction(
+            actionType = "tool_call.get_help_or_input",
+            actionParams = params
+        )
+        component.update(action, subflow)
+
+        assertEquals("Finding Relevant Code", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
+        assertEquals("Waiting for input...", component.secondaryLabel.text)
     }
 
     @Suppress("UNCHECKED_CAST")

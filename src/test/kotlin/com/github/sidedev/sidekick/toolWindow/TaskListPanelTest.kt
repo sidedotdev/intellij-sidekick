@@ -7,7 +7,7 @@ import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.testFramework.PlatformTestUtil
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.UsefulTestCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,7 +16,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TaskListPanelTest : BasePlatformTestCase() {
+class TaskListPanelTest : UsefulTestCase() {
     private lateinit var sidekickService: SidekickService
     private lateinit var taskListModel: TaskListModel
     private lateinit var taskListPanel: TaskListPanel

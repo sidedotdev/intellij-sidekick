@@ -2,12 +2,14 @@ package com.github.sidedev.sidekick.toolWindow.components
 
 import com.github.sidedev.sidekick.api.Subflow
 import com.github.sidedev.sidekick.api.SubflowStatus
-import com.github.sidedev.sidekick.models.FlowAction
+import com.github.sidedev.sidekick.models.*
 import com.intellij.ui.AnimatedIcon
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.util.ui.JBUI
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import java.awt.BorderLayout
 import javax.swing.BoxLayout
 import javax.swing.JPanel
@@ -105,49 +107,63 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
     }
 
     private fun getRetrieveCodeContextStatus(params: Map<String, JsonElement>): String {
-        val requests = params["code_context_requests"] ?: return "Looking up code..."
-        val requestsArray = requests.toString()
-        val fileCount = requestsArray.split("file_path").size - 1
-        
-        return if (fileCount > 1) {
-            "Looking up: multiple files"
-        } else if (fileCount == 1) {
-            val fileName = requestsArray.substringAfter("file_path").substringAfter(":").substringBefore(",").trim('"')
-            "Looking up: $fileName"
-        } else {
+        return try {
+            val toolParams = Json.decodeFromJsonElement<RetrieveCodeContextParams>(params.values.first())
+            val requests = toolParams.codeContextRequests
+            
+            when {
+                requests.isEmpty() -> "Looking up code..."
+                else -> buildString {
+                    append("Looking up: ")
+                    append(requests.joinToString(", ") { request ->
+                        buildString {
+                            append(request.filePath)
+                            if (!request.symbolNames.isNullOrEmpty()) {
+                                append(" (${request.symbolNames.joinToString(", ")})")
+                            }
+                        }
+                    })
+                }
+            }
+        } catch (e: Exception) {
             "Looking up code..."
         }
     }
 
     private fun getBulkSearchRepositoryStatus(params: Map<String, JsonElement>): String {
-        val searches = params["searches"] ?: return "Searching..."
-        val searchesStr = searches.toString()
-        
-        // Extract search terms
-        val searchTerms = searchesStr.split("search_term")
-            .drop(1) // Skip the part before first search_term
-            .map { it.substringAfter(":").substringBefore(",").trim('"', ' ', '}', ']') }
-            .filter { it.isNotEmpty() }
-
-        return when {
-            searchTerms.isEmpty() -> "Searching..."
-            searchTerms.size == 1 -> "Searching: ${searchTerms[0]}"
-            else -> "Searching: ${searchTerms[0]} (and ${searchTerms.size - 1} more)"
+        return try {
+            val toolParams = Json.decodeFromJsonElement<BulkSearchRepositoryParams>(params.values.first())
+            val searches = toolParams.searches
+            
+            when {
+                searches.isEmpty() -> "Searching..."
+                else -> buildString {
+                    append("Searching for: ")
+                    append(searches.joinToString(", ") { search ->
+                        if (search.pathGlob.isNotEmpty()) {
+                            "'${search.searchTerm}' in ${search.pathGlob}"
+                        } else {
+                            "'${search.searchTerm}'"
+                        }
+                    })
+                }
+            }
+        } catch (e: Exception) {
+            "Searching..."
         }
     }
 
     private fun getReadFileLinesStatus(params: Map<String, JsonElement>): String {
-        val fileLines = params["file_lines"] ?: return "Reading files..."
-        val fileLinesStr = fileLines.toString()
-        
-        val fileCount = fileLinesStr.split("file_path").size - 1
-        return when {
-            fileCount == 0 -> "Reading files..."
-            fileCount == 1 -> {
-                val fileName = fileLinesStr.substringAfter("file_path").substringAfter(":").substringBefore(",").trim('"')
-                "Reading: $fileName"
+        return try {
+            val toolParams = Json.decodeFromJsonElement<ReadFileLinesParams>(params.values.first())
+            val fileLines = toolParams.fileLines
+            
+            when {
+                fileLines.isEmpty() -> "Reading files..."
+                else -> "Reading: ${fileLines.joinToString(", ") { it.filePath }}"
             }
-            else -> "Reading: multiple files"
+        } catch (e: Exception) {
+            "Reading files..."
         }
     }
 }

@@ -4,9 +4,8 @@ import com.github.sidedev.sidekick.api.Subflow
 import com.github.sidedev.sidekick.api.SubflowStatus
 import com.github.sidedev.sidekick.models.ActionStatus
 import com.github.sidedev.sidekick.models.FlowAction
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.UsefulTestCase
 import io.mockk.*
-import junit.framework.Assert.assertFalse
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -19,7 +18,7 @@ import kotlin.time.Duration.Companion.seconds
 import javax.swing.JComponent
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TaskExecutionSectionTest : BasePlatformTestCase() {
+class TaskExecutionSectionTest : UsefulTestCase() {
 
     private lateinit var taskExecutionSection: TaskExecutionSection
     private lateinit var contentPanel: JPanel
