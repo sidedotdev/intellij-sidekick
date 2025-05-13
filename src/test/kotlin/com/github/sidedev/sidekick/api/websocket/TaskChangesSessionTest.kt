@@ -6,11 +6,10 @@ import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.TaskResponse
 import com.github.sidedev.sidekick.api.TaskStatus
-// Removed unused import com.github.sidedev.sidekick.models.Usage
 import com.intellij.openapi.diagnostic.Logger
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.datetime.Instant // Added import for Instant
+import kotlinx.datetime.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
 import kotlinx.serialization.encodeToString

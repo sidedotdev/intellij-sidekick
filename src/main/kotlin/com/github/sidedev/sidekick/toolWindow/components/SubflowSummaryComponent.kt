@@ -24,10 +24,10 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
 
     internal val primaryLabel = JBLabel()
     internal val secondaryLabel = JBLabel()
-    internal val loadingIcon = AnimatedIcon.Default() // The animated icon itself
-    internal val loadingIconContainer = JBLabel(loadingIcon)    // JBLabel to
-    // host the
-    // icon
+
+    // container required to control loading icon visibility
+    internal val loadingIcon = AnimatedIcon.Default()
+    internal val loadingIconContainer = JBLabel(loadingIcon)
 
     // Panel to hold the icon and secondary text horizontally
     internal val secondaryContentPanel = JPanel().apply {

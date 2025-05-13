@@ -7,7 +7,6 @@ import com.intellij.testFramework.UsefulTestCase
 import com.intellij.ui.AnimatedIcon
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
 class SubflowSummaryComponentTest : UsefulTestCase() {

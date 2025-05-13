@@ -9,7 +9,6 @@ import com.github.sidedev.sidekick.api.SubflowStatus
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.testFramework.UsefulTestCase
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextArea
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -17,7 +16,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 import java.awt.Component
-import java.awt.event.MouseEvent
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskViewPanelTest : UsefulTestCase() {
