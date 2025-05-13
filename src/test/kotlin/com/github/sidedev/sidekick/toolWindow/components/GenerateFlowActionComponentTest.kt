@@ -2,11 +2,11 @@ package com.github.sidedev.sidekick.toolWindow.components
 
 import com.github.sidedev.sidekick.models.ActionStatus
 import com.github.sidedev.sidekick.models.FlowAction
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.UsefulTestCase
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
-class GenerateFlowActionComponentTest : BasePlatformTestCase() {
+class GenerateFlowActionComponentTest : UsefulTestCase() {
 
     private lateinit var component: GenerateFlowActionComponent
     private val now: Instant = Clock.System.now()
