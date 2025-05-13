@@ -18,7 +18,7 @@ class TaskExecutionSection(
     },
 ) : AccordionSection(title = name, content = initialContent, initiallyExpanded = false) {
 
-    internal data class CodeContextSubflowState(var subflow: Subflow, var latestNonTerminalAction: FlowAction? = null)
+    internal data class CodeContextSubflowState(var subflow: Subflow)
 
     // Map to store SubflowSummaryComponent instances by Subflow ID for "code_context" subflows
     internal val subflowSummaries = mutableMapOf<String, SubflowSummaryComponent>()
@@ -47,19 +47,6 @@ class TaskExecutionSection(
             // Ensure state has the latest subflow object passed with this action
             state.subflow = subflow
 
-            // Update latestNonTerminalAction based on the current flowAction
-            val currentLatestAction = state.latestNonTerminalAction
-            if (flowAction.actionStatus == ActionStatus.PENDING || flowAction.actionStatus == ActionStatus.STARTED) {
-                if (currentLatestAction == null || flowAction.updated > currentLatestAction.updated) {
-                    state.latestNonTerminalAction = flowAction
-                }
-            } else if (flowAction.actionStatus == ActionStatus.COMPLETE || flowAction.actionStatus == ActionStatus.FAILED) {
-                // If the completed/failed action was the latest non-terminal one, clear it
-                if (currentLatestAction?.id == flowAction.id) {
-                    state.latestNonTerminalAction = null
-                }
-            }
-
             val summaryComponent = subflowSummaries.getOrPut(subflowId) {
                 SubflowSummaryComponent().also { newComponent ->
                     content.add(newComponent)
@@ -67,7 +54,7 @@ class TaskExecutionSection(
                     content.repaint()
                 }
             }
-            summaryComponent.update(state.latestNonTerminalAction, state.subflow)
+            summaryComponent.update(flowAction, state.subflow)
             // Individual FlowActionComponents are not created for "code_context" subflows
         } else {
             val existingComponent = flowActionComponents[flowAction.id]
@@ -129,7 +116,6 @@ class TaskExecutionSection(
 
             val state = codeContextSubflowStates.getOrPut(subflowId) {
                 // If state doesn't exist when subflow update comes, create it.
-                // latestNonTerminalAction will be null initially if state is created here.
                 CodeContextSubflowState(updatedSubflow)
             }
             // Always update the subflow in the state with the new information
@@ -137,7 +123,7 @@ class TaskExecutionSection(
 
             // Update the summary component if it exists.
             // The component's update method will handle its repaint.
-            subflowSummaries[subflowId]?.update(state.latestNonTerminalAction, state.subflow)
+            subflowSummaries[subflowId]?.update(null, state.subflow)
         }
         // Non-"code_context" subflows are not handled by this method for summary components,
         // as their display is typically action-specific via FlowActionComponent.

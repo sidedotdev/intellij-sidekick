@@ -332,10 +332,9 @@ class TaskExecutionSectionTest : BasePlatformTestCase() {
         val state = taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]!!
         assertNotNull(state)
         assertEquals(codeContextSubflow1, state.subflow)
-        assertEquals(action, state.latestNonTerminalAction)
     }
 
-    fun `test processAction updates latestNonTerminalAction for code_context subflow`() = runTest(testDispatcher) {
+    fun `test processAction updates subflow state for code_context subflow`() = runTest(testDispatcher) {
         val time1 = Clock.System.now()
         val time2 = time1 + 1.seconds
         val time3 = time2 + 1.seconds
@@ -348,38 +347,36 @@ class TaskExecutionSectionTest : BasePlatformTestCase() {
         taskExecutionSection.processAction(action1, codeContextSubflow1)
         var state = taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]!!
         assertNotNull(state)
-        assertEquals(action1, state.latestNonTerminalAction)
+        assertEquals(codeContextSubflow1, state.subflow)
         val summaryComponent = taskExecutionSection.subflowSummaries[codeContextSubflow1.id]
         assertNotNull(summaryComponent)
-        // Verify summaryComponent.update was called (indirectly, by checking its state if possible, or by spying)
-        // For now, we assume the state reflects the update.
 
-        // Process second (more recent) STARTED action
-        taskExecutionSection.processAction(action2, codeContextSubflow1) // subflow object itself might be same or updated
+        // Process second action
+        taskExecutionSection.processAction(action2, codeContextSubflow1)
         state = taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]!!
         assertNotNull(state)
-        assertEquals(action2, state.latestNonTerminalAction) // action2 is more recent
+        assertEquals(codeContextSubflow1, state.subflow)
 
-        // Process a COMPLETE action (action2 was latest non-terminal)
+        // Process a COMPLETE action
         val action2Completed = action2.copy(actionStatus = ActionStatus.COMPLETE, updated = time3)
-        taskExecutionSection.processAction(action2Completed, codeContextSubflow1.copy(status = SubflowStatus.STARTED)) // Subflow still started
+        taskExecutionSection.processAction(action2Completed, codeContextSubflow1.copy(status = SubflowStatus.STARTED))
         state = taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]!!
         assertNotNull(state)
-        assertNull(state.latestNonTerminalAction) // Cleared because action2 (the latest) completed
+        assertEquals(codeContextSubflow1.copy(status = SubflowStatus.STARTED), state.subflow)
 
-        // Process another STARTED action after latest was cleared
+        // Process another STARTED action
         val action4 = createFlowAction("cc-action-4", codeContextSubflow1
             .id, actionStatus = ActionStatus.STARTED, updated = time3 + 1.seconds)
         taskExecutionSection.processAction(action4, codeContextSubflow1.copy(status = SubflowStatus.STARTED))
         state = taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]!!
         assertNotNull(state)
-        assertEquals(action4, state.latestNonTerminalAction)
+        assertEquals(codeContextSubflow1.copy(status = SubflowStatus.STARTED), state.subflow)
 
-        // Process a COMPLETE action that was NOT the latestNonTerminalAction
+        // Process a COMPLETE action for a previous action
         taskExecutionSection.processAction(action1.copy(actionStatus = ActionStatus.COMPLETE), codeContextSubflow1.copy(status = SubflowStatus.STARTED))
         state = taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]!!
         assertNotNull(state)
-        assertEquals(action4, state.latestNonTerminalAction) // Should still be action4
+        assertEquals(codeContextSubflow1.copy(status = SubflowStatus.STARTED), state.subflow)
     }
 
     fun `test processAction handles multiple distinct code_context subflows`() = runTest(testDispatcher) {
@@ -402,8 +399,8 @@ class TaskExecutionSectionTest : BasePlatformTestCase() {
         assertEquals(2, taskExecutionSection.codeContextSubflowStates.size)
         assertNotNull(taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id])
         assertNotNull(taskExecutionSection.codeContextSubflowStates[codeContextSubflow2.id])
-        assertEquals(actionCc1, taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]?.latestNonTerminalAction)
-        assertEquals(actionCc2, taskExecutionSection.codeContextSubflowStates[codeContextSubflow2.id]?.latestNonTerminalAction)
+        assertEquals(codeContextSubflow1, taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]?.subflow)
+        assertEquals(codeContextSubflow2, taskExecutionSection.codeContextSubflowStates[codeContextSubflow2.id]?.subflow)
     }
 
 
@@ -432,20 +429,14 @@ class TaskExecutionSectionTest : BasePlatformTestCase() {
         val state = taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]!!
         assertNotNull(state)
         assertEquals(updatedSubflowComplete, state.subflow) // Subflow in state is updated
-        // latestNonTerminalAction should remain as is, or be cleared if the subflow completion implies action completion
-        // Current logic in processAction clears latestNonTerminalAction if its status becomes terminal.
-        // updateSubflow itself doesn't modify latestNonTerminalAction, only passes it to summary.update.
-        // If initialAction was STARTED, it should still be the latestNonTerminalAction in the state.
-        assertEquals(initialAction, state.latestNonTerminalAction)
 
-
-        verify(exactly = 1) { summaryComponentSpy.update(initialAction, updatedSubflowComplete) }
+        verify(exactly = 1) { summaryComponentSpy.update(null, updatedSubflowComplete) }
 
         // When subflow status updates to FAILED
         val updatedSubflowFailed = codeContextSubflow1.copy(status = SubflowStatus.FAILED)
         taskExecutionSection.updateSubflow(updatedSubflowFailed)
         assertEquals(updatedSubflowFailed, state.subflow)
-        verify(exactly = 1) { summaryComponentSpy.update(initialAction, updatedSubflowFailed) }
+        verify(exactly = 1) { summaryComponentSpy.update(null, updatedSubflowFailed) }
     }
 
     fun `test updateSubflow for code_context subflow creates state if not existing`() = runTest(testDispatcher) {
@@ -458,7 +449,6 @@ class TaskExecutionSectionTest : BasePlatformTestCase() {
         val state = taskExecutionSection.codeContextSubflowStates[codeContextSubflow1.id]!!
         assertNotNull(state)
         assertEquals(updatedSubflow, state.subflow)
-        assertNull(state.latestNonTerminalAction) // No action processed yet
 
         // No summary component should be created or updated by updateSubflow if it doesn't exist
         assertTrue(taskExecutionSection.subflowSummaries.isEmpty())
