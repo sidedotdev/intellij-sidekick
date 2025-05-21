@@ -38,14 +38,15 @@ class SubflowSummaryComponentTest : UsefulTestCase() {
     // Helper to create a Subflow for tests
     private fun createSubflow(
         status: SubflowStatus,
-        type: String = "code_context"
+        type: String? = "code_context",
+        name: String = "Test Subflow"
     ): Subflow {
         return Subflow(
             workspaceId = "ws1",
             id = "subflow1",
-            name = "Test Code Context Subflow",
+            name = name,
             type = type,
-            description = "Generating code context",
+            description = "Test description",
             status = status,
             flowId = "flow1"
         )
@@ -183,20 +184,68 @@ class SubflowSummaryComponentTest : UsefulTestCase() {
     }
 
 
-    fun `test update with SubflowStatus COMPLETE`() {
-        val subflow = createSubflow(status = SubflowStatus.COMPLETE)
-        component.update(null, subflow) // Action shouldn't matter for COMPLETE status visibility
+    fun `test update with code_context type and COMPLETE status`() {
+        val subflow = createSubflow(status = SubflowStatus.COMPLETE, type = "code_context")
+        component.update(null, subflow)
 
         assertEquals("Found Relevant Code", component.primaryLabel.text)
         assertFalse(component.secondaryContentPanel.isVisible)
     }
 
-    fun `test update with SubflowStatus FAILED`() {
-        val subflow = createSubflow(status = SubflowStatus.FAILED)
-        component.update(null, subflow) // Action shouldn't matter for FAILED status visibility
+    fun `test update with code_context type and FAILED status`() {
+        val subflow = createSubflow(status = SubflowStatus.FAILED, type = "code_context")
+        component.update(null, subflow)
 
         assertEquals("Failed to Find Code", component.primaryLabel.text)
         assertFalse(component.secondaryContentPanel.isVisible)
+    }
+
+    fun `test update with dev_requirements type and all statuses`() {
+        val startedSubflow = createSubflow(status = SubflowStatus.STARTED, type = "dev_requirements")
+        component.update(null, startedSubflow)
+        assertEquals("Determining Requirements", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
+
+        val completeSubflow = createSubflow(status = SubflowStatus.COMPLETE, type = "dev_requirements")
+        component.update(null, completeSubflow)
+        assertEquals("Requirements Determined", component.primaryLabel.text)
+        assertFalse(component.secondaryContentPanel.isVisible)
+
+        val failedSubflow = createSubflow(status = SubflowStatus.FAILED, type = "dev_requirements")
+        component.update(null, failedSubflow)
+        assertEquals("Failed to Determine Requirements", component.primaryLabel.text)
+        assertFalse(component.secondaryContentPanel.isVisible)
+    }
+
+    fun `test update with dev_plan type and all statuses`() {
+        val startedSubflow = createSubflow(status = SubflowStatus.STARTED, type = "dev_plan")
+        component.update(null, startedSubflow)
+        assertEquals("Building Plan", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
+
+        val completeSubflow = createSubflow(status = SubflowStatus.COMPLETE, type = "dev_plan")
+        component.update(null, completeSubflow)
+        assertEquals("Plan Built", component.primaryLabel.text)
+        assertFalse(component.secondaryContentPanel.isVisible)
+
+        val failedSubflow = createSubflow(status = SubflowStatus.FAILED, type = "dev_plan")
+        component.update(null, failedSubflow)
+        assertEquals("Failed to Build Plan", component.primaryLabel.text)
+        assertFalse(component.secondaryContentPanel.isVisible)
+    }
+
+    fun `test update with null type shows subflow name`() {
+        val subflow = createSubflow(status = SubflowStatus.STARTED, type = null, name = "Custom Subflow")
+        component.update(null, subflow)
+        assertEquals("Custom Subflow", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
+    }
+
+    fun `test update with other type shows subflow name`() {
+        val subflow = createSubflow(status = SubflowStatus.STARTED, type = "other_type", name = "Other Type Subflow")
+        component.update(null, subflow)
+        assertEquals("Other Type Subflow", component.primaryLabel.text)
+        assertTrue(component.secondaryContentPanel.isVisible)
     }
 
     fun `test update with read file lines action - single file`() {
