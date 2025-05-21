@@ -65,12 +65,8 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
      * @param subflow The current state of the Subflow being summarized
      */
     fun update(flowAction: FlowAction?, subflow: Subflow) {
-        // Update primary label based on subflow status
-        primaryLabel.text = when (subflow.status) {
-            SubflowStatus.STARTED -> "Finding Relevant Code"
-            SubflowStatus.COMPLETE -> "Found Relevant Code"
-            SubflowStatus.FAILED -> "Failed to Find Code"
-        }
+        // Update primary label based on subflow type and status
+        primaryLabel.text = getStatusText(subflow)
 
         // Update secondary line visibility and content
         if (subflow.status == SubflowStatus.STARTED) {
@@ -89,6 +85,27 @@ class SubflowSummaryComponent : JBPanel<SubflowSummaryComponent>(BorderLayout())
 
         revalidate()
         repaint()
+    }
+
+    private fun getStatusText(subflow: Subflow): String {
+        return when (subflow.type) {
+            "code_context" -> when (subflow.status) {
+                SubflowStatus.STARTED -> "Finding Relevant Code"
+                SubflowStatus.COMPLETE -> "Found Relevant Code"
+                SubflowStatus.FAILED -> "Failed to Find Code"
+            }
+            "dev_requirements" -> when (subflow.status) {
+                SubflowStatus.STARTED -> "Determining Requirements"
+                SubflowStatus.COMPLETE -> "Requirements Determined"
+                SubflowStatus.FAILED -> "Failed to Determine Requirements"
+            }
+            "dev_plan" -> when (subflow.status) {
+                SubflowStatus.STARTED -> "Building Plan"
+                SubflowStatus.COMPLETE -> "Plan Built"
+                SubflowStatus.FAILED -> "Failed to Build Plan"
+            }
+            else -> subflow.name
+        }
     }
 
     private fun getToolSpecificStatusText(flowAction: FlowAction): String {
