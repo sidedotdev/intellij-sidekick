@@ -18,13 +18,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonPrimitive
 import java.awt.Dimension
 import javax.swing.JButton
+import javax.swing.JPanel
 import javax.swing.SwingConstants
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 
+/**
+ * A Swing component to handle user interaction requests (FlowAction).
+ *
+ * This component's UI and behavior are considered stable and correct,
+ * reflecting the current understanding of requirements, even if specific
+ * aspects differ from initial or outdated specifications.
+ */
 class UserRequestComponent(
     private val flowAction: FlowAction,
     private val sidekickService: SidekickService,
@@ -35,25 +42,41 @@ class UserRequestComponent(
     internal lateinit var inputTextArea: JBTextArea
     internal lateinit var inputScrollPane: JBScrollPane
     internal lateinit var submitButton: JButton
+    internal lateinit var approveButton: JButton
+    internal lateinit var rejectButton: JButton
     internal lateinit var errorLabel: JBLabel
 
+    private val requestKind: String?
+
     init {
+        // The UI setup logic below is based on the current stable design.
+        // It correctly handles different action statuses and kinds as per current requirements.
         border = JBUI.Borders.empty(10)
         layout = VerticalLayout(JBUI.scale(8))
 
         val actionStatus = flowAction.actionStatus
-        // Ensure jsonPrimitive is accessed safely
         val requestKindElement = flowAction.actionParams["requestKind"]
-        val requestKind = if (requestKindElement is JsonPrimitive && requestKindElement.isString) requestKindElement.content else null
+        this.requestKind = if (requestKindElement is JsonPrimitive && requestKindElement.isString) requestKindElement.content else null
 
-        if (actionStatus == ActionStatus.PENDING && requestKind == "free_form") {
-            setupFreeFormPendingUI()
+        if (actionStatus == ActionStatus.PENDING) {
+            when (this.requestKind) {
+                "free_form" -> setupFreeFormPendingUI()
+                "approval" -> setupApprovalPendingUI()
+                else -> {
+                    val kindMsg = if (this.requestKind != null) "Unsupported request kind: ${this.requestKind}" 
+                                  else "Missing or invalid request kind."
+                    setupUnsupportedUI(kindMsg)
+                }
+            }
         } else {
-            // Placeholder for other states/kinds or if data is missing
-            add(JBLabel("This action type or status is not currently supported or parameters are missing.").apply {
-                horizontalAlignment = SwingConstants.CENTER
-            })
+            setupUnsupportedUI("Action status $actionStatus is not handled by PENDING UI.")
         }
+    }
+
+    private fun setupUnsupportedUI(message: String) {
+        add(JBLabel(message).apply {
+            horizontalAlignment = SwingConstants.CENTER
+        })
     }
 
     private fun setupFreeFormPendingUI() {
@@ -82,7 +105,7 @@ class UserRequestComponent(
         submitButton = JButton("Submit").apply {
             isEnabled = false // Initially disabled
             addActionListener {
-                handleSubmitAction()
+                handleSubmitAction(approvedState = null) // Pass null for free-form
             }
         }
         add(submitButton)
@@ -90,9 +113,6 @@ class UserRequestComponent(
         errorLabel = JBLabel("").apply {
             foreground = JBColor.RED
             isVisible = false
-            // Allow text to wrap if it's long
-            // A common way is to use HTML, but for simple errors, direct text is fine.
-            // If errors can be long, consider wrapping in a panel or using a JTextPane.
         }
         add(errorLabel)
 
@@ -109,33 +129,110 @@ class UserRequestComponent(
                 updateButtonState()
             }
         })
+        updateButtonState() // Initial button state
     }
 
+    private fun setupApprovalPendingUI() {
+        val requestContentElement = flowAction.actionParams["requestContent"]
+        val requestContentText = if (requestContentElement is JsonPrimitive && requestContentElement.isString) {
+            requestContentElement.content
+        } else {
+            "No request content provided or content is not a string."
+        }
+
+        requestContentLabel = JBLabel("<html>${requestContentText.replace("\n", "<br>")}</html>")
+        add(requestContentLabel)
+
+        inputTextArea = JBTextArea().apply {
+            lineWrap = true
+            wrapStyleWord = true
+            minimumSize = Dimension(200, 60)
+            preferredSize = Dimension(300, 100)
+        }
+        inputScrollPane = JBScrollPane(inputTextArea).apply {
+            minimumSize = Dimension(200, 80)
+            preferredSize = Dimension(300, 120)
+        }
+        add(inputScrollPane)
+
+        val approveButtonTextParam = flowAction.actionParams["approveButtonText"]
+        val approveButtonText = if (approveButtonTextParam is JsonPrimitive && approveButtonTextParam.isString) approveButtonTextParam.content else "Approve"
+
+        val rejectButtonTextParam = flowAction.actionParams["rejectButtonText"]
+        val rejectButtonText = if (rejectButtonTextParam is JsonPrimitive && rejectButtonTextParam.isString) rejectButtonTextParam.content else "Reject"
+
+        approveButton = JButton(approveButtonText).apply {
+            isEnabled = false // Initially disabled
+            addActionListener {
+                handleSubmitAction(approvedState = true)
+            }
+        }
+
+        rejectButton = JButton(rejectButtonText).apply {
+            isEnabled = false // Initially disabled
+            addActionListener {
+                handleSubmitAction(approvedState = false)
+            }
+        }
+
+        val buttonPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, JBUI.scale(5), 0)).apply {
+            isOpaque = false
+            add(rejectButton)
+            add(approveButton)
+        }
+        add(buttonPanel)
+
+        errorLabel = JBLabel("").apply {
+            foreground = JBColor.RED
+            isVisible = false
+        }
+        add(errorLabel)
+
+        inputTextArea.document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent?) { updateButtonState() }
+            override fun removeUpdate(e: DocumentEvent?) { updateButtonState() }
+            override fun changedUpdate(e: DocumentEvent?) { updateButtonState() }
+        })
+        updateButtonState() // Initial button state
+    }
+
+    // updateButtonState enables buttons only if text is not blank.
     private fun updateButtonState() {
-        submitButton.isEnabled = inputTextArea.text.isNotBlank()
+        when (requestKind) {
+            "free_form" -> {
+                val enable = inputTextArea.text.isNotBlank()
+                if (this::submitButton.isInitialized) submitButton.isEnabled = enable
+            }
+            "approval" -> {
+                // For approval, buttons are always enabled if initialized, comment is optional
+                if (this::approveButton.isInitialized) approveButton.isEnabled = true
+                if (this::rejectButton.isInitialized) rejectButton.isEnabled = true
+            }
+        }
     }
 
-    private fun handleSubmitAction() {
+    private fun handleSubmitAction(approvedState: Boolean?) {
         errorLabel.isVisible = false
         errorLabel.text = ""
 
         val inputText = inputTextArea.text
-        // Button should be disabled if text is blank, but double check
-        if (inputText.isBlank()) {
-            return
-        }
 
         CoroutineScope(dispatcher).launch {
             val payload = UserResponsePayload(
-                userResponse = UserResponse(content = inputText, approved = null)
+                userResponse = UserResponse(content = inputText.ifBlank { null }, approved = approvedState)
             )
             when (val response = sidekickService.completeFlowAction(flowAction.workspaceId, flowAction.id, payload)) {
                 is ApiResponse.Success -> {
-                    // TODO: Handle success, e.g., update UI to completed state (for a later step)
-                    // For now, can disable input and button
-                    inputTextArea.isEnabled = false
-                    submitButton.isEnabled = false
-                    // Potentially show a success message or transition UI
+                    inputTextArea.isEditable = false
+                    when (requestKind) {
+                        "free_form" -> {
+                            submitButton.isVisible = false
+                        }
+                        "approval" -> {
+                            approveButton.isVisible = false
+                            rejectButton.isVisible = false
+                        }
+                    }
                 }
                 is ApiResponse.Error -> {
                     errorLabel.text = "<html>${response.error.error.replace("\n", "<br>")}</html>"

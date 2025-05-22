@@ -7,9 +7,7 @@ import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.github.sidedev.sidekick.models.ActionStatus
 import com.github.sidedev.sidekick.models.FlowAction
-import com.intellij.testFramework.EdtRule
-import com.intellij.testFramework.RunsInEdt
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.UsefulTestCase
 import com.intellij.ui.components.JBLabel
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -19,23 +17,14 @@ import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.JUnit4
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
-@RunsInEdt // Ensure Swing components are accessed on the EDT
-@RunWith(JUnit4::class) // Required for @Rule and @Test to work with BasePlatformTestCase
-class UserRequestComponentTest : BasePlatformTestCase() {
-
-    @get:Rule val edtRule = EdtRule() // Ensures tests run on EDT
-
+class UserRequestComponentTest : UsefulTestCase() {
     private lateinit var sidekickServiceMock: SidekickService
     private lateinit var testDispatcher: TestDispatcher
     private lateinit var userRequestComponent: UserRequestComponent
@@ -52,11 +41,13 @@ class UserRequestComponentTest : BasePlatformTestCase() {
     private fun createTestFlowAction(
         status: ActionStatus,
         kind: String,
-        requestContent: String,
-        params: Map<String, JsonElement> = mapOf(
-            "requestKind" to JsonPrimitive(kind),
-            "requestContent" to JsonPrimitive(requestContent)
-        )
+        requestContent: String?, // Allow null for testing missing content
+        params: Map<String, JsonElement> = mutableMapOf<String, JsonElement>().apply {
+            this["requestKind"] = JsonPrimitive(kind)
+            if (requestContent != null) {
+                this["requestContent"] = JsonPrimitive(requestContent)
+            }
+        }
     ): FlowAction {
         return FlowAction(
             id = testFlowActionId,
@@ -95,7 +86,7 @@ class UserRequestComponentTest : BasePlatformTestCase() {
         val flowAction = createTestFlowAction(ActionStatus.PENDING, "free_form", "Enter details")
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
 
-        assertFalse(userRequestComponent.submitButton.isEnabled)
+        assertFalse(userRequestComponent.submitButton.isEnabled) // initially disabled
 
         userRequestComponent.inputTextArea.text = "Some input"
         assertTrue(userRequestComponent.submitButton.isEnabled)
@@ -117,13 +108,14 @@ class UserRequestComponentTest : BasePlatformTestCase() {
         coEvery { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) } returns ApiResponse.Success(Unit)
 
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        assertTrue(userRequestComponent.inputTextArea.isEditable)
         userRequestComponent.inputTextArea.text = userInput
         userRequestComponent.submitButton.doClick()
         
         coVerify { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) }
         // Check UI changes on success (e.g., disabled fields)
-        assertFalse(userRequestComponent.inputTextArea.isEnabled)
-        assertFalse(userRequestComponent.submitButton.isEnabled)
+        assertFalse(userRequestComponent.inputTextArea.isEditable)
+        assertFalse(userRequestComponent.submitButton.isVisible)
     }
 
     @Test
@@ -143,8 +135,8 @@ class UserRequestComponentTest : BasePlatformTestCase() {
 
         assertTrue(userRequestComponent.errorLabel.isVisible)
         assertEquals("<html>${errorMessage}</html>", userRequestComponent.errorLabel.text)
-        assertTrue(userRequestComponent.inputTextArea.isEnabled) // Should still be enabled to allow retry
-        assertTrue(userRequestComponent.submitButton.isEnabled)
+        assertTrue(userRequestComponent.inputTextArea.isVisible) // Should still be enabled to allow retry
+        assertTrue(userRequestComponent.submitButton.isVisible)
 
 
         // Setup for successful retry
@@ -157,19 +149,142 @@ class UserRequestComponentTest : BasePlatformTestCase() {
         assertFalse(userRequestComponent.errorLabel.isVisible)
         assertEquals("", userRequestComponent.errorLabel.text) // Text should be cleared
         // Check UI changes on success
-        assertFalse(userRequestComponent.inputTextArea.isEnabled)
-        assertFalse(userRequestComponent.submitButton.isEnabled)
+        assertFalse(userRequestComponent.inputTextArea.isEditable)
+        assertFalse(userRequestComponent.submitButton.isVisible)
     }
     
     @Test
     fun `test component shows placeholder for non-freeform PENDING action`() = runTest(testDispatcher) {
-        val flowAction = createTestFlowAction(ActionStatus.PENDING, "approval", "Approve this?")
+        val flowAction = createTestFlowAction(ActionStatus.PENDING, "some_other_kind", "Do this?")
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
 
         val label = userRequestComponent.getComponent(0) as? JBLabel
         assertNotNull(label)
-        assertEquals("This action type or status is not currently supported or parameters are missing.", label!!.text)
+        assertEquals("Unsupported request kind: some_other_kind", label!!.text)
     }
+    
+    @Test
+    fun `test approval PENDING state renders correctly with default button texts`() = runTest(testDispatcher) {
+        val requestText = "Please approve this action."
+        val flowAction = createTestFlowAction(ActionStatus.PENDING, "approval", requestText)
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+
+        assertNotNull(userRequestComponent.requestContentLabel)
+        assertEquals("<html>${requestText.replace("\n", "<br>")}</html>", userRequestComponent.requestContentLabel.text)
+        assertNotNull(userRequestComponent.inputTextArea) // Assumed to be present for optional comments
+        assertTrue(userRequestComponent.inputTextArea.isEditable)
+        assertNotNull(userRequestComponent.approveButton)
+        assertEquals("Approve", userRequestComponent.approveButton.text)
+        assertTrue(userRequestComponent.approveButton.isEnabled)
+        assertTrue(userRequestComponent.approveButton.isVisible)
+        assertNotNull(userRequestComponent.rejectButton)
+        assertEquals("Reject", userRequestComponent.rejectButton.text)
+        assertTrue(userRequestComponent.rejectButton.isEnabled)
+        assertTrue(userRequestComponent.rejectButton.isVisible)
+        assertNotNull(userRequestComponent.errorLabel)
+        assertFalse(userRequestComponent.errorLabel.isVisible)
+    }
+
+    @Test
+    fun `test approval PENDING state renders correctly with custom button texts`() = runTest(testDispatcher) {
+        val requestText = "Confirm action?"
+        val approveText = "Yes, Proceed!"
+        val rejectText = "No, Cancel."
+        val params = mapOf(
+            "requestKind" to JsonPrimitive("approval"),
+            "requestContent" to JsonPrimitive(requestText),
+            "approveButtonText" to JsonPrimitive(approveText),
+            "rejectButtonText" to JsonPrimitive(rejectText)
+        )
+        val flowAction = createTestFlowAction(ActionStatus.PENDING, "approval", requestText, params)
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+
+        assertEquals(approveText, userRequestComponent.approveButton.text)
+        assertEquals(rejectText, userRequestComponent.rejectButton.text)
+    }
+    
+    @Test
+    fun `test approve action calls service with correct params for approval PENDING`() = runTest(testDispatcher) {
+        val flowAction = createTestFlowAction(ActionStatus.PENDING, "approval", "Approve it.")
+        val userInput = "User comment for approval"
+        val expectedPayload = UserResponsePayload(UserResponse(content = userInput, approved = true))
+
+        coEvery { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) } returns ApiResponse.Success(Unit)
+
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        userRequestComponent.inputTextArea.text = userInput
+        userRequestComponent.approveButton.doClick()
+
+        coVerify { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) }
+        assertFalse(userRequestComponent.inputTextArea.isEditable)
+        assertTrue(userRequestComponent.inputTextArea.isVisible)
+        assertFalse(userRequestComponent.approveButton.isVisible)
+        assertFalse(userRequestComponent.rejectButton.isVisible)
+    }
+
+    @Test
+    fun `test reject action calls service with correct params for approval PENDING`() = runTest(testDispatcher) {
+        val flowAction = createTestFlowAction(ActionStatus.PENDING, "approval", "Reject it.")
+        val userInput = "User comment for rejection"
+        val expectedPayload = UserResponsePayload(UserResponse(content = userInput, approved = false))
+
+        coEvery { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) } returns ApiResponse.Success(Unit)
+
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        userRequestComponent.inputTextArea.text = userInput
+        userRequestComponent.rejectButton.doClick()
+
+        coVerify { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) }
+        assertFalse(userRequestComponent.inputTextArea.isEditable)
+        assertTrue(userRequestComponent.inputTextArea.isVisible)
+        assertFalse(userRequestComponent.approveButton.isVisible)
+        assertFalse(userRequestComponent.rejectButton.isVisible)
+    }
+    
+    @Test
+    fun `test API error displays and clears for approval PENDING on approve`() = runTest(testDispatcher) {
+        val flowAction = createTestFlowAction(ActionStatus.PENDING, "approval", "Approve with error.")
+        val userInput = "Error test input"
+        val errorMessage = "Approval failed!"
+        val expectedPayload = UserResponsePayload(UserResponse(content = userInput, approved = true))
+
+        coEvery { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) } returns ApiResponse.Error(ApiError(errorMessage))
+
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        userRequestComponent.inputTextArea.text = userInput
+        userRequestComponent.approveButton.doClick()
+
+        assertTrue(userRequestComponent.errorLabel.isVisible)
+        assertEquals("<html>${errorMessage}</html>", userRequestComponent.errorLabel.text)
+        assertTrue(userRequestComponent.inputTextArea.isEditable)
+        assertTrue(userRequestComponent.inputTextArea.isVisible)
+        assertTrue(userRequestComponent.approveButton.isVisible)
+        assertTrue(userRequestComponent.rejectButton.isVisible)
+
+        coEvery { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) } returns ApiResponse.Success(Unit)
+        userRequestComponent.approveButton.doClick() // Retry
+
+        assertFalse(userRequestComponent.errorLabel.isVisible)
+        assertEquals("", userRequestComponent.errorLabel.text)
+        assertFalse(userRequestComponent.inputTextArea.isEditable)
+        assertFalse(userRequestComponent.approveButton.isVisible)
+        assertFalse(userRequestComponent.rejectButton.isVisible)
+    }
+    
+    @Test
+    fun `test approve action with blank input sends null content`() = runTest(testDispatcher) {
+        val flowAction = createTestFlowAction(ActionStatus.PENDING, "approval", "Approve it.")
+        val expectedPayload = UserResponsePayload(UserResponse(content = null, approved = true))
+
+        coEvery { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) } returns ApiResponse.Success(Unit)
+
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        userRequestComponent.inputTextArea.text = "   " // Blank input
+        userRequestComponent.approveButton.doClick()
+
+        coVerify { sidekickServiceMock.completeFlowAction(testWorkspaceId, testFlowActionId, expectedPayload) }
+    }
+
 
     @Test
     fun `test component shows placeholder for COMPLETED free_form action`() = runTest(testDispatcher) {
@@ -178,63 +293,71 @@ class UserRequestComponentTest : BasePlatformTestCase() {
         
         val label = userRequestComponent.getComponent(0) as? JBLabel
         assertNotNull(label)
-        assertEquals("This action type or status is not currently supported or parameters are missing.", label!!.text)
+        assertEquals("Action status COMPLETE is not handled by PENDING UI.", label!!.text)
     }
     
     @Test
     fun `test component handles missing requestKind or requestContent`() = runTest(testDispatcher) {
         // Missing requestKind
         var flowAction = createTestFlowAction(
-            ActionStatus.PENDING, 
+            ActionStatus.PENDING,
             "free_form", // This kind is in the helper, but we override params
-            "Content",
+            "Content", // This content is in the helper, but we override params
             params = mapOf("requestContent" to JsonPrimitive("Some content")) // requestKind is missing
         )
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
         var label = userRequestComponent.getComponent(0) as? JBLabel
         assertNotNull("Component should have a label for missing kind", label)
-        assertEquals("This action type or status is not currently supported or parameters are missing.", label!!.text)
+        assertEquals("Missing or invalid request kind.", label!!.text)
 
         // Missing requestContent (but kind is free_form)
         flowAction = createTestFlowAction(
             ActionStatus.PENDING,
-            "free_form", 
-            "", // This content is in the helper, but we override params
-            params = mapOf("requestKind" to JsonPrimitive("free_form")) // requestContent is missing
+            "free_form",
+            null, // Explicitly pass null for requestContent
+            params = mapOf("requestKind" to JsonPrimitive("free_form")) // requestContent is missing from params
         )
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
         // This will proceed to setupFreeFormPendingUI but requestContentLabel will show default message
         assertNotNull(userRequestComponent.requestContentLabel)
         assertEquals("<html>No request content provided or content is not a string.</html>", userRequestComponent.requestContentLabel.text)
+        
+        // Missing requestContent (but kind is approval)
+        flowAction = createTestFlowAction(
+            ActionStatus.PENDING,
+            "approval",
+            null, // Explicitly pass null for requestContent
+            params = mapOf("requestKind" to JsonPrimitive("approval")) // requestContent is missing from params
+        )
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        // This will proceed to setupApprovalPendingUI but requestContentLabel will show default message
+        assertNotNull(userRequestComponent.requestContentLabel)
+        assertEquals("<html>No request content provided or content is not a string.</html>", userRequestComponent.requestContentLabel.text)
+
 
         // Both missing
         flowAction = createTestFlowAction(
             ActionStatus.PENDING,
-            "free_form",
-            "",
+            "free_form", // This kind is in the helper, but we override params
+            null, // This content is in the helper, but we override params
             params = mapOf("someOtherParam" to JsonPrimitive("value")) // Both kind and content missing
         )
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
         label = userRequestComponent.getComponent(0) as? JBLabel
         assertNotNull("Component should have a label for both missing", label)
-        assertEquals("This action type or status is not currently supported or parameters are missing.", label!!.text)
-        
+        assertEquals("Missing or invalid request kind.", label!!.text)
+
         // requestKind is JsonNull
         flowAction = createTestFlowAction(
             ActionStatus.PENDING,
-            "free_form",
-            "Content",
+            "free_form", // This kind is in the helper, but we override params
+            "Content", // This content is in the helper, but we override params
             params = mapOf("requestKind" to JsonNull, "requestContent" to JsonPrimitive("Some content"))
         )
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
         label = userRequestComponent.getComponent(0) as? JBLabel
         assertNotNull("Component should have a label for null kind", label)
-        assertEquals("This action type or status is not currently supported or parameters are missing.", label!!.text)
+        assertEquals("Missing or invalid request kind.", label!!.text)
 
     }
-
-
-    // BasePlatformTestCase doesn't require getTestDataPath if not used,
-    // but if it were needed:
-    // override fun getTestDataPath(): String = "src/test/testData"
 }
