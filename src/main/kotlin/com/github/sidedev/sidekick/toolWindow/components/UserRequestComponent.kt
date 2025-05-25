@@ -17,6 +17,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import java.awt.Dimension
 import javax.swing.JButton
@@ -24,6 +26,7 @@ import javax.swing.JPanel
 import javax.swing.SwingConstants
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
+import com.github.sidedev.sidekick.api.ActionResult
 
 /**
  * A Swing component to handle user interaction requests (FlowAction).
@@ -47,6 +50,8 @@ class UserRequestComponent(
     internal lateinit var errorLabel: JBLabel
 
     private val requestKind: String?
+    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+
 
     init {
         // The UI setup logic below is based on the current stable design.
@@ -63,13 +68,14 @@ class UserRequestComponent(
                 "free_form" -> setupFreeFormPendingUI()
                 "approval" -> setupApprovalPendingUI()
                 else -> {
-                    val kindMsg = if (this.requestKind != null) "Unsupported request kind: ${this.requestKind}" 
+                    val kindMsg = if (this.requestKind != null) "Unsupported request kind: ${this.requestKind}"
                                   else "Missing or invalid request kind."
                     setupUnsupportedUI(kindMsg)
                 }
             }
         } else {
-            setupUnsupportedUI("Action status $actionStatus is not handled by PENDING UI.")
+            // Non-PENDING status, setup completed UI
+            setupCompletedUI()
         }
     }
 
@@ -210,6 +216,46 @@ class UserRequestComponent(
             }
         }
     }
+
+    private fun setupCompletedUI() {
+        val requestContentElement = flowAction.actionParams["requestContent"]
+        val requestContentText = if (requestContentElement is JsonPrimitive && requestContentElement.isString) {
+            requestContentElement.content
+        } else {
+            "No original request content available."
+        }
+        add(JBLabel("<html><b>Original Request:</b><br>${requestContentText.replace("\n", "<br>")}</html>"))
+
+        val actionResultString = flowAction.actionResult
+        if (actionResultString == null) {
+            add(JBLabel("Result: No action result available.").apply { foreground = JBColor.RED })
+            return
+        }
+
+        try {
+            val actionResult = json.decodeFromString<ActionResult>(actionResultString)
+
+            if (requestKind == "approval") {
+                val statusText = if (actionResult.approved == true) "✅ Approved" else "❌ Rejected"
+                add(JBLabel("<html><b>Status:</b> $statusText</html>"))
+            }
+
+            if (!actionResult.content.isNullOrBlank()) {
+                add(JBLabel("<html><b>Result:</b><br>${actionResult.content.replace("\n", "<br>")}</html>"))
+            } else if (requestKind == "free_form") {
+                add(JBLabel("Result: No content submitted."))
+            } else if (requestKind == "approval" && actionResult.content.isNullOrBlank()) {
+                 add(JBLabel("Result: No comments provided."))
+            }
+
+        } catch (e: Exception) {
+            // Handle JSON parsing error
+            add(JBLabel("<html><b>Result:</b> Error parsing action result: ${e.message?.replace("\n", "<br>")}</html>").apply { foreground = JBColor.RED })
+            // Optionally, display the raw string if parsing fails and it's useful
+            // add(JBLabel("Raw result: $actionResultString"))
+        }
+    }
+
 
     private fun handleSubmitAction(approvedState: Boolean?) {
         errorLabel.isVisible = false

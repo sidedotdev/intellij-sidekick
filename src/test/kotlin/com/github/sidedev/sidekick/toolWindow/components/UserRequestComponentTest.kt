@@ -17,10 +17,13 @@ import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
+import com.github.sidedev.sidekick.api.ActionResult // Added import
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
+import kotlinx.serialization.encodeToString // Added import
+import kotlinx.serialization.json.Json // Added import
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
