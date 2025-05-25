@@ -48,6 +48,10 @@ class UserRequestComponent(
     internal lateinit var approveButton: JButton
     internal lateinit var rejectButton: JButton
     internal lateinit var errorLabel: JBLabel
+    internal lateinit var originalRequestLabel: JBLabel
+    internal lateinit var statusLabel: JBLabel
+    internal lateinit var resultLabel: JBLabel
+    internal lateinit var unsupportedLabel: JBLabel
 
     private val requestKind: String?
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
@@ -80,9 +84,10 @@ class UserRequestComponent(
     }
 
     private fun setupUnsupportedUI(message: String) {
-        add(JBLabel(message).apply {
+        unsupportedLabel = JBLabel(message).apply {
             horizontalAlignment = SwingConstants.CENTER
-        })
+        }
+        add(unsupportedLabel)
     }
 
     private fun setupFreeFormPendingUI() {
@@ -224,11 +229,21 @@ class UserRequestComponent(
         } else {
             "No original request content available."
         }
-        add(JBLabel("<html><b>Original Request:</b><br>${requestContentText.replace("\n", "<br>")}</html>"))
+        originalRequestLabel = JBLabel("<html><b>Original Request:</b><br>${requestContentText.replace("\n", "<br>")}</html>")
+        add(originalRequestLabel)
+
+        // Always initialize statusLabel, but make it hidden by default
+        statusLabel = JBLabel("")
+        statusLabel.isVisible = false
+
+        // Always initialize resultLabel
+        resultLabel = JBLabel("")
 
         val actionResultString = flowAction.actionResult
-        if (actionResultString == null) {
-            add(JBLabel("Result: No action result available.").apply { foreground = JBColor.RED })
+        if (actionResultString == "") {
+            resultLabel.text = "Result: No action result available."
+            resultLabel.foreground = JBColor.RED
+            add(resultLabel)
             return
         }
 
@@ -237,22 +252,27 @@ class UserRequestComponent(
 
             if (requestKind == "approval") {
                 val statusText = if (actionResult.approved == true) "✅ Approved" else "❌ Rejected"
-                add(JBLabel("<html><b>Status:</b> $statusText</html>"))
+                statusLabel.text = "<html><b>Status:</b> $statusText</html>"
+                statusLabel.isVisible = true
+                add(statusLabel)
             }
 
             if (!actionResult.content.isNullOrBlank()) {
-                add(JBLabel("<html><b>Result:</b><br>${actionResult.content.replace("\n", "<br>")}</html>"))
+                resultLabel.text = "<html><b>Result:</b><br>${actionResult.content.replace("\n", "<br>")}</html>"
+                add(resultLabel)
             } else if (requestKind == "free_form") {
-                add(JBLabel("Result: No content submitted."))
+                resultLabel.text = "Result: No content submitted."
+                add(resultLabel)
             } else if (requestKind == "approval" && actionResult.content.isNullOrBlank()) {
-                 add(JBLabel("Result: No comments provided."))
+                resultLabel.text = "Result: No comments provided."
+                add(resultLabel)
             }
 
         } catch (e: Exception) {
             // Handle JSON parsing error
-            add(JBLabel("<html><b>Result:</b> Error parsing action result: ${e.message?.replace("\n", "<br>")}</html>").apply { foreground = JBColor.RED })
-            // Optionally, display the raw string if parsing fails and it's useful
-            // add(JBLabel("Raw result: $actionResultString"))
+            resultLabel.text = "<html><b>Result:</b> Error parsing action result: ${e.message?.replace("\n", "<br>")}</html>"
+            resultLabel.foreground = JBColor.RED
+            add(resultLabel)
         }
     }
 

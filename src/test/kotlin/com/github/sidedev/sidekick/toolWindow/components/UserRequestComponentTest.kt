@@ -44,13 +44,14 @@ class UserRequestComponentTest : UsefulTestCase() {
     private fun createTestFlowAction(
         status: ActionStatus,
         kind: String,
-        requestContent: String?, // Allow null for testing missing content
+        requestContent: String?,
         params: Map<String, JsonElement> = mutableMapOf<String, JsonElement>().apply {
             this["requestKind"] = JsonPrimitive(kind)
             if (requestContent != null) {
                 this["requestContent"] = JsonPrimitive(requestContent)
             }
-        }
+        },
+        actionResult: String = ""
     ): FlowAction {
         return FlowAction(
             id = testFlowActionId,
@@ -62,7 +63,7 @@ class UserRequestComponentTest : UsefulTestCase() {
             actionType = "USER_REQUEST",
             actionParams = params,
             actionStatus = status,
-            actionResult = "", // Not used in PENDING state
+            actionResult = actionResult,
             isHumanAction = true
         )
     }
@@ -161,9 +162,7 @@ class UserRequestComponentTest : UsefulTestCase() {
         val flowAction = createTestFlowAction(ActionStatus.PENDING, "some_other_kind", "Do this?")
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
 
-        val label = userRequestComponent.getComponent(0) as? JBLabel
-        assertNotNull(label)
-        assertEquals("Unsupported request kind: some_other_kind", label!!.text)
+        assertEquals("Unsupported request kind: some_other_kind", userRequestComponent.unsupportedLabel.text)
     }
     
     @Test
@@ -290,13 +289,181 @@ class UserRequestComponentTest : UsefulTestCase() {
 
 
     @Test
-    fun `test component shows placeholder for COMPLETED free_form action`() = runTest(testDispatcher) {
-        val flowAction = createTestFlowAction(ActionStatus.COMPLETE, "free_form", "Done.")
+    fun `test COMPLETE free_form action with valid actionResult`() = runTest(testDispatcher) {
+        val requestContent = "Please provide your analysis"
+        val resultContent = "Here is my detailed analysis of the situation"
+        val actionResult = ActionResult(content = resultContent, approved = null)
+        val actionResultJson = Json.encodeToString(actionResult)
+        
+        val flowAction = createTestFlowAction(
+            ActionStatus.COMPLETE, 
+            "free_form", 
+            requestContent,
+            actionResult = actionResultJson
+        )
         userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
         
-        val label = userRequestComponent.getComponent(0) as? JBLabel
-        assertNotNull(label)
-        assertEquals("Action status COMPLETE is not handled by PENDING UI.", label!!.text)
+        // Should have original request label
+        assertEquals("<html><b>Original Request:</b><br>Please provide your analysis</html>", userRequestComponent.originalRequestLabel.text)
+        
+        // Should have result label
+        assertEquals("<html><b>Result:</b><br>Here is my detailed analysis of the situation</html>", userRequestComponent.resultLabel.text)
+    }
+
+    @Test
+    fun `test COMPLETE approval action with approved true`() = runTest(testDispatcher) {
+        val requestContent = "Please approve this change"
+        val resultContent = "Looks good to me"
+        val actionResult = ActionResult(content = resultContent, approved = true)
+        val actionResultJson = Json.encodeToString(actionResult)
+        
+        val flowAction = createTestFlowAction(
+            ActionStatus.COMPLETE, 
+            "approval", 
+            requestContent,
+            actionResult = actionResultJson
+        )
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        
+        // Should have original request label
+        assertEquals("<html><b>Original Request:</b><br>Please approve this change</html>", userRequestComponent.originalRequestLabel.text)
+        
+        // Should have status label showing approved
+        assertEquals("<html><b>Status:</b> ✅ Approved</html>", userRequestComponent.statusLabel.text)
+        
+        // Should have result label with content
+        assertEquals("<html><b>Result:</b><br>Looks good to me</html>", userRequestComponent.resultLabel.text)
+    }
+
+    @Test
+    fun `test COMPLETE approval action with approved false`() = runTest(testDispatcher) {
+        val requestContent = "Please approve this change"
+        val resultContent = "I have concerns about this approach"
+        val actionResult = ActionResult(content = resultContent, approved = false)
+        val actionResultJson = Json.encodeToString(actionResult)
+        
+        val flowAction = createTestFlowAction(
+            ActionStatus.COMPLETE, 
+            "approval", 
+            requestContent,
+            actionResult = actionResultJson
+        )
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        
+        // Should have original request label
+        assertEquals("<html><b>Original Request:</b><br>Please approve this change</html>", userRequestComponent.originalRequestLabel.text)
+        
+        // Should have status label showing rejected
+        assertEquals("<html><b>Status:</b> ❌ Rejected</html>", userRequestComponent.statusLabel.text)
+        
+        // Should have result label with content
+        assertEquals("<html><b>Result:</b><br>I have concerns about this approach</html>", userRequestComponent.resultLabel.text)
+    }
+
+    @Test
+    fun `test COMPLETE action with missing actionResult`() = runTest(testDispatcher) {
+        val requestContent = "Please provide feedback"
+        
+        val flowAction = createTestFlowAction(
+            ActionStatus.COMPLETE, 
+            "free_form", 
+            requestContent,
+            actionResult = "",
+        )
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        
+        // Should have original request label
+        assertEquals("<html><b>Original Request:</b><br>Please provide feedback</html>", userRequestComponent.originalRequestLabel.text)
+        
+        // Should have error label for missing result
+        assertEquals("Result: No action result available.", userRequestComponent.resultLabel.text)
+    }
+
+    @Test
+    fun `test COMPLETE action with invalid JSON in actionResult`() = runTest(testDispatcher) {
+        val requestContent = "Please provide feedback"
+        val invalidJson = "{ invalid json content"
+        
+        val flowAction = createTestFlowAction(
+            ActionStatus.COMPLETE, 
+            "free_form", 
+            requestContent,
+            actionResult = invalidJson
+        )
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        
+        // Should have original request label
+        assertEquals("<html><b>Original Request:</b><br>Please provide feedback</html>", userRequestComponent.originalRequestLabel.text)
+        
+        // Should have error label for JSON parsing error
+        assertTrue("Error label should contain parsing error message", 
+            userRequestComponent.resultLabel.text.contains("Error parsing action result:"))
+    }
+
+    @Test
+    fun `test COMPLETE action with missing requestContent`() = runTest(testDispatcher) {
+        val resultContent = "Task completed successfully"
+        val actionResult = ActionResult(content = resultContent, approved = null)
+        val actionResultJson = Json.encodeToString(actionResult)
+        
+        val flowAction = createTestFlowAction(
+            ActionStatus.COMPLETE, 
+            "free_form", 
+            null, // No request content
+            actionResult = actionResultJson
+        )
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        
+        // Should have original request label with default message
+        assertEquals("<html><b>Original Request:</b><br>No original request content available.</html>", userRequestComponent.originalRequestLabel.text)
+        
+        // Should have result label
+        assertEquals("<html><b>Result:</b><br>Task completed successfully</html>", userRequestComponent.resultLabel.text)
+    }
+
+    @Test
+    fun `test COMPLETE free_form action with empty content shows appropriate message`() = runTest(testDispatcher) {
+        val requestContent = "Please provide feedback"
+        val actionResult = ActionResult(content = "", approved = null)
+        val actionResultJson = Json.encodeToString(actionResult)
+        
+        val flowAction = createTestFlowAction(
+            ActionStatus.COMPLETE, 
+            "free_form", 
+            requestContent,
+            actionResult = actionResultJson
+        )
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        
+        // Should have original request label
+        assertEquals("<html><b>Original Request:</b><br>Please provide feedback</html>", userRequestComponent.originalRequestLabel.text)
+        
+        // Should have message for no content submitted
+        assertEquals("Result: No content submitted.", userRequestComponent.resultLabel.text)
+    }
+
+    @Test
+    fun `test COMPLETE approval action with empty content shows appropriate message`() = runTest(testDispatcher) {
+        val requestContent = "Please approve this change"
+        val actionResult = ActionResult(content = "", approved = true)
+        val actionResultJson = Json.encodeToString(actionResult)
+        
+        val flowAction = createTestFlowAction(
+            ActionStatus.COMPLETE, 
+            "approval", 
+            requestContent,
+            actionResult = actionResultJson
+        )
+        userRequestComponent = UserRequestComponent(flowAction, sidekickServiceMock, testDispatcher)
+        
+        // Should have original request label
+        assertEquals("<html><b>Original Request:</b><br>Please approve this change</html>", userRequestComponent.originalRequestLabel.text)
+        
+        // Should have status label showing approved
+        assertEquals("<html><b>Status:</b> ✅ Approved</html>", userRequestComponent.statusLabel.text)
+        
+        // Should have message for no comments provided
+        assertEquals("Result: No comments provided.", userRequestComponent.resultLabel.text)
     }
     
     @Test
