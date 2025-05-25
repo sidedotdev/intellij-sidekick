@@ -11,6 +11,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.logger
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.*
@@ -29,8 +30,9 @@ class SidekickService(
     private val baseUrl: String = "http://localhost:8855",
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val logger: Logger = logger<SidekickService>(),
+    engine: HttpClientEngine = CIO.create() // Added for testability
 ) {
-    private val client = HttpClient(CIO) {
+    private val client = HttpClient(engine) { // Use the provided or default engine
         install(ContentNegotiation) {
             json(
                 Json {
@@ -51,8 +53,8 @@ class SidekickService(
     ): ApiResponse<Res, ApiError> = try {
         val response = client.request("$baseUrl/api/v1$path") {
             this.method = method
-            contentType(ContentType.Application.Json)
             if (requestBody != null) {
+                contentType(ContentType.Application.Json) // Explicitly set Content-Type
                 setBody(requestBody)
             }
         }
@@ -126,6 +128,17 @@ class SidekickService(
             method = HttpMethod.Get,
             path = "/workspaces/$workspaceId/subflows/$subflowId",
         ).map { it.subflow }
+
+    suspend fun completeFlowAction(
+        workspaceId: String,
+        flowActionId: String,
+        payload: UserResponsePayload
+    ): ApiResponse<Unit, ApiError> =
+        request<UserResponsePayload, Unit>(
+            method = HttpMethod.Post,
+            path = "/workspaces/$workspaceId/flow_actions/$flowActionId/complete",
+            requestBody = payload
+        )
 
     suspend fun connectToFlowEvents(
         workspaceId: String,
