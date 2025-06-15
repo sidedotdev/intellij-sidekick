@@ -26,11 +26,11 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 
-class SidekickService(
+class SidekickService @JvmOverloads constructor(
     private val baseUrl: String = "http://localhost:8855",
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val logger: Logger = logger<SidekickService>(),
-    engine: HttpClientEngine = CIO.create() // Added for testability
+    engine: HttpClientEngine = CIO.create()
 ) {
     private val client = HttpClient(engine) { // Use the provided or default engine
         install(ContentNegotiation) {
