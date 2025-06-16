@@ -16,8 +16,8 @@ class FlowActionComponent(
 ) : JBPanel<FlowActionComponent>(BorderLayout()), IUpdatableFlowActionPanel {
 
     // Properties to hold the labels for updating
-    private lateinit var actionTypeLabel: JBLabel
-    private lateinit var actionResultLabel: JBLabel
+    internal lateinit var actionTypeLabel: JBLabel
+    internal lateinit var actionResultLabel: JBLabel
 
     init {
         alignmentY = JComponent.TOP_ALIGNMENT
