@@ -6,8 +6,9 @@ import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.testFramework.PlatformTestUtil
-import com.intellij.testFramework.UsefulTestCase
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,7 +17,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TaskListPanelTest : UsefulTestCase() {
+class TaskListPanelTest : BasePlatformTestCase() {
     private lateinit var sidekickService: SidekickService
     private lateinit var taskListModel: TaskListModel
     private lateinit var taskListPanel: TaskListPanel
@@ -53,7 +54,10 @@ class TaskListPanelTest : UsefulTestCase() {
 
     fun testEmptyStateShowsNoTasksMessageAndButton() = runTest(testDispatcher) {
         // Given an empty task list
-        taskListPanel.replaceTasks(emptyList())
+        ApplicationManager.getApplication().invokeLater {
+            taskListPanel.replaceTasks(emptyList())
+        }
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // And the New Task button should be present and visible
         assertTrue("New Task button should be visible", taskListPanel.newTaskButton.isVisible)
@@ -62,7 +66,9 @@ class TaskListPanelTest : UsefulTestCase() {
 
     fun testNewTaskButtonTriggersCallback() = runTest(testDispatcher) {
         // Given an empty task list
-        taskListPanel.replaceTasks(emptyList())
+        ApplicationManager.getApplication().invokeLater {
+            taskListPanel.replaceTasks(emptyList())
+        }
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // When clicking the New Task button
@@ -79,7 +85,9 @@ class TaskListPanelTest : UsefulTestCase() {
         val tasks = listOf(exampleTask)
 
         // When updating the task list
-        taskListPanel.replaceTasks(tasks)
+        ApplicationManager.getApplication().invokeLater {
+            taskListPanel.replaceTasks(tasks)
+        }
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // Then the task list should be visible and empty state hidden
@@ -90,7 +98,10 @@ class TaskListPanelTest : UsefulTestCase() {
 
     fun testTaskSelectionTriggersCallback() = runTest(testDispatcher) {
         // Given a list of tasks
-        taskListPanel.replaceTasks(listOf(exampleTask))
+        ApplicationManager.getApplication().invokeLater {
+            taskListPanel.replaceTasks(listOf(exampleTask))
+        }
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // When selecting a task
         taskListPanel.taskList.selectedIndex = 0
@@ -106,6 +117,7 @@ class TaskListPanelTest : UsefulTestCase() {
 
         // When refreshing the task list
         taskListPanel.refreshTaskList()
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // Then the tasks should be updated and status label hidden
         assertEquals("Task list should have correct number of items", 1, taskListPanel.taskList.model.size)
@@ -114,7 +126,9 @@ class TaskListPanelTest : UsefulTestCase() {
 
     fun testRefreshTaskListError() = runTest(testDispatcher) {
         // Given an initial task list
-        taskListPanel.replaceTasks(listOf(exampleTask))
+        ApplicationManager.getApplication().invokeLater {
+            taskListPanel.replaceTasks(listOf(exampleTask))
+        }
         PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
 
         // pre-condition: if this fails, we aren't waiting for updates to get applied properly
@@ -132,8 +146,6 @@ class TaskListPanelTest : UsefulTestCase() {
         assertEquals("Status label should show error message", "<html>$errorMessage</html>", taskListPanel.statusLabel.text)
         assertTrue("Status label should be visible", taskListPanel.statusLabel.isVisible)
 
-        // FIXME this is slightly flaky, it sometimes fails saying:
-        //      junit.framework.AssertionFailedError: Task list should preserve existing tasks:<1> but was:<0>
         assertEquals("Task list should preserve existing tasks", 1, taskListPanel.taskList.model.size)
 
         assertEquals("Initial task should still be present", exampleTask, taskListPanel.taskList.model.getElementAt(0))

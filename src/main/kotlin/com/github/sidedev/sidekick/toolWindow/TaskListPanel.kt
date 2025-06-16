@@ -2,9 +2,8 @@ package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
-import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
-import com.intellij.ui.JBColor
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBPanel
@@ -73,7 +72,9 @@ class TaskListPanel(
     suspend fun refreshTaskList() {
         when (val response = sidekickService.getTasks(workspaceId)) {
             is ApiResponse.Success -> {
-                replaceTasks(response.data)
+                ApplicationManager.getApplication().invokeLater {
+                    replaceTasks(response.data)
+                }
             }
             is ApiResponse.Error -> {
                 statusLabel.text = "<html>${ response.error.error }</html>"
