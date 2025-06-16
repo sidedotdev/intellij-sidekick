@@ -109,7 +109,7 @@ class TaskViewPanel(
             logger.error("failed to get subflow with id: $parentId")
             null
         } else {
-            logger.info("subflow type ${subflow.type} has parent subflow type ${parentSubflow.type}")
+            logger.debug("subflow type ${subflow.type} has parent subflow type ${parentSubflow.type}")
             findPrimarySubflow(parentSubflow)
         }
     }
@@ -227,15 +227,12 @@ class TaskViewPanel(
     private suspend fun handleFlowEvent(flowEvent: FlowEvent) {
         // Process the flow event
         ApplicationManager.getApplication().invokeLater {
-            logger.info("Processing flow event: $flowEvent")
+            logger.trace("Processing flow event: $flowEvent")
             // TODO: Add specific event handling logic here as needed
         }
     }
 
     private suspend fun handleFlowAction(flowAction: FlowAction) {
-        // Process the UI update without debounce
-        processFlowActionUpdate(flowAction)
-
         debounceMutex.withLock {
             // Cancel any existing debounce job for this action
             debounceJobs[flowAction.id]?.cancel()
@@ -244,6 +241,8 @@ class TaskViewPanel(
             debounceJobs[flowAction.id] = coroutineScope.launch {
                 try {
                     delay(DEBOUNCE_DELAY_MS)
+
+                    processFlowActionUpdate(flowAction)
 
                     // If action is non-terminal, subscribe to parent
                     if (flowAction.actionStatus.isNonTerminal()) {
@@ -259,8 +258,6 @@ class TaskViewPanel(
     }
 
     private suspend fun processFlowActionUpdate(flowAction: FlowAction) {
-        val actionComponent = FlowActionComponent(flowAction)
-
         // Handle actions without a subflow first
         if (flowAction.subflowId == null) {
             ApplicationManager.getApplication().invokeLater {
@@ -281,6 +278,7 @@ class TaskViewPanel(
                     if (maybeGlue?.name == "end_glue") {
                         contentPanel.remove(maybeGlue)
                     }
+                    val actionComponent = FlowActionComponent(flowAction)
                     contentPanel.add(actionComponent)
                     contentPanel.add(Box.createVerticalGlue().apply { name = "end_glue" });
                     contentPanel.revalidate()
@@ -307,7 +305,7 @@ class TaskViewPanel(
         }
 
         val sectionId = determineSectionId(subflow)
-        logger.info("subflow type: ${subflow.type}, section id: $sectionId")
+        logger.debug("subflow type: ${subflow.type}, section id: $sectionId")
 
         // Create section if needed
         // Add flow action to the appropriate section
@@ -394,7 +392,7 @@ class TaskViewPanel(
                 debounceJobs.values.forEach { it.cancel() }
                 debounceJobs.clear()
             }
+            coroutineScope.cancel()
         }
-        coroutineScope.cancel()
     }
 }

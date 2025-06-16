@@ -33,7 +33,7 @@ repositories {
 
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
-    // think we don't need it as intellijPlatform includes it?
+    implementation(libs.kotlinxCoroutines)
     implementation(libs.kotlinxSerializationJson)
     implementation(libs.kotlinxDatetime)
     implementation(libs.ktorClientCore)
@@ -197,4 +197,12 @@ intellijPlatformTesting {
 
 tasks.withType<Test>().configureEach {
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+}
+
+/**
+ * Exclude all kotlinx coroutine modules from the runtime classpath to avoid conflicts with the IDE.
+ * */
+configurations.runtimeClasspath {
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
+    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
 }

@@ -132,11 +132,7 @@ class SidekickToolWindow(
             taskListModel = taskListModel,
             sidekickService = sidekickService,
             onTaskSelected = { task ->
-                taskViewPanel = TaskViewPanel(
-                    task = task,
-                )
-                contentPanel.add(taskViewPanel, TaskViewPanel.NAME)
-                cardLayout.show(contentPanel, TaskViewPanel.NAME)
+                showTaskView(task)
             },
             onNewTask = { showTaskCreation() }
         )
@@ -171,8 +167,9 @@ class SidekickToolWindow(
         }
     }
 
-    fun showTaskView(task: Task) {
+    private fun showTaskView(task: Task) {
         contentPanel.remove(taskViewPanel)
+        taskViewPanel.dispose()
         taskViewPanel = TaskViewPanel(
             task = task,
         )

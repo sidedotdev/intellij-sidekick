@@ -73,7 +73,7 @@ sealed class ApiResponse<out T, out E> {
 
     fun asResult(): Result<T> = when (this) {
         is Success -> Result.success(data)
-        is Error -> throw Exception("${error}")
+        is Error -> Result.failure(Exception("${error}"))
     }
 
 }
