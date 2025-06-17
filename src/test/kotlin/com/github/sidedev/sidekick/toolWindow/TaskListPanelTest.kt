@@ -8,7 +8,10 @@ import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.testFramework.PlatformTestUtil
+import com.intellij.testFramework.UsefulTestCase
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.testFramework.fixtures.IdeaTestFixture
+import com.intellij.testFramework.fixtures.IdeaTestFixtureFactory
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,10 +20,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TaskListPanelTest : BasePlatformTestCase() {
+class TaskListPanelTest : UsefulTestCase() {
     private lateinit var sidekickService: SidekickService
     private lateinit var taskListModel: TaskListModel
     private lateinit var taskListPanel: TaskListPanel
+    private lateinit var fixture: IdeaTestFixture
     private var taskSelectedCallbackInvoked = false
     private var newTaskCallbackInvoked = false
     
@@ -39,6 +43,8 @@ class TaskListPanelTest : BasePlatformTestCase() {
 
     override fun setUp() {
         super.setUp()
+        fixture = IdeaTestFixtureFactory.getFixtureFactory().createBareFixture()
+        fixture.setUp()
         sidekickService = mockk()
         coEvery { sidekickService.getTasks("test-workspace") } returns ApiResponse.Success(emptyList())
 
@@ -52,7 +58,24 @@ class TaskListPanelTest : BasePlatformTestCase() {
         )
     }
 
+    override fun tearDown() {
+        fixture.tearDown()
+        super.tearDown()
+    }
+
     fun testEmptyStateShowsNoTasksMessageAndButton() = runTest(testDispatcher) {
+        // Given an empty task list
+        ApplicationManager.getApplication().invokeLater {
+            taskListPanel.replaceTasks(emptyList())
+        }
+        PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
+
+        // And the New Task button should be present and visible
+        assertTrue("New Task button should be visible", taskListPanel.newTaskButton.isVisible)
+        assertEquals("New Task button should have correct text", "Start New Task", taskListPanel.newTaskButton.text)
+    }
+
+    fun testEmptyStateShowsNoTasksMessageAndButtonV2() = runTest(testDispatcher) {
         // Given an empty task list
         ApplicationManager.getApplication().invokeLater {
             taskListPanel.replaceTasks(emptyList())
