@@ -233,6 +233,9 @@ class TaskViewPanel(
     }
 
     private suspend fun handleFlowAction(flowAction: FlowAction) {
+        // skip debouncing to avoid ordering issues
+        processFlowActionUpdate(flowAction)
+
         debounceMutex.withLock {
             // Cancel any existing debounce job for this action
             debounceJobs[flowAction.id]?.cancel()
@@ -241,8 +244,6 @@ class TaskViewPanel(
             debounceJobs[flowAction.id] = coroutineScope.launch {
                 try {
                     delay(DEBOUNCE_DELAY_MS)
-
-                    processFlowActionUpdate(flowAction)
 
                     // If action is non-terminal, subscribe to parent
                     if (flowAction.actionStatus.isNonTerminal()) {
