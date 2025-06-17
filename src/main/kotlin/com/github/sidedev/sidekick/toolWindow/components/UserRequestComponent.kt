@@ -17,7 +17,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import java.awt.Dimension
@@ -26,7 +25,7 @@ import javax.swing.JPanel
 import javax.swing.SwingConstants
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
-import com.github.sidedev.sidekick.api.ActionResult
+import com.github.sidedev.sidekick.api.UserRequestActionResult
 
 /**
  * A Swing component to handle user interaction requests (FlowAction).
@@ -248,7 +247,7 @@ class UserRequestComponent(
         }
 
         try {
-            val actionResult = json.decodeFromString<ActionResult>(actionResultString)
+            val actionResult = json.decodeFromString<UserRequestActionResult>(actionResultString)
 
             if (requestKind == "approval") {
                 val statusText = if (actionResult.approved == true) "✅ Approved" else "❌ Rejected"

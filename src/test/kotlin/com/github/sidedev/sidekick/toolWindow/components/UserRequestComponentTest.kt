@@ -17,7 +17,7 @@ import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
-import com.github.sidedev.sidekick.api.ActionResult // Added import
+import com.github.sidedev.sidekick.api.UserRequestActionResult // Added import
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
@@ -292,7 +292,7 @@ class UserRequestComponentTest : UsefulTestCase() {
     fun `test COMPLETE free_form action with valid actionResult`() = runTest(testDispatcher) {
         val requestContent = "Please provide your analysis"
         val resultContent = "Here is my detailed analysis of the situation"
-        val actionResult = ActionResult(content = resultContent, approved = null)
+        val actionResult = UserRequestActionResult(content = resultContent, approved = null)
         val actionResultJson = Json.encodeToString(actionResult)
         
         val flowAction = createTestFlowAction(
@@ -314,7 +314,7 @@ class UserRequestComponentTest : UsefulTestCase() {
     fun `test COMPLETE approval action with approved true`() = runTest(testDispatcher) {
         val requestContent = "Please approve this change"
         val resultContent = "Looks good to me"
-        val actionResult = ActionResult(content = resultContent, approved = true)
+        val actionResult = UserRequestActionResult(content = resultContent, approved = true)
         val actionResultJson = Json.encodeToString(actionResult)
         
         val flowAction = createTestFlowAction(
@@ -339,7 +339,7 @@ class UserRequestComponentTest : UsefulTestCase() {
     fun `test COMPLETE approval action with approved false`() = runTest(testDispatcher) {
         val requestContent = "Please approve this change"
         val resultContent = "I have concerns about this approach"
-        val actionResult = ActionResult(content = resultContent, approved = false)
+        val actionResult = UserRequestActionResult(content = resultContent, approved = false)
         val actionResultJson = Json.encodeToString(actionResult)
         
         val flowAction = createTestFlowAction(
@@ -403,7 +403,7 @@ class UserRequestComponentTest : UsefulTestCase() {
     @Test
     fun `test COMPLETE action with missing requestContent`() = runTest(testDispatcher) {
         val resultContent = "Task completed successfully"
-        val actionResult = ActionResult(content = resultContent, approved = null)
+        val actionResult = UserRequestActionResult(content = resultContent, approved = null)
         val actionResultJson = Json.encodeToString(actionResult)
         
         val flowAction = createTestFlowAction(
@@ -424,7 +424,7 @@ class UserRequestComponentTest : UsefulTestCase() {
     @Test
     fun `test COMPLETE free_form action with empty content shows appropriate message`() = runTest(testDispatcher) {
         val requestContent = "Please provide feedback"
-        val actionResult = ActionResult(content = "", approved = null)
+        val actionResult = UserRequestActionResult(content = "", approved = null)
         val actionResultJson = Json.encodeToString(actionResult)
         
         val flowAction = createTestFlowAction(
@@ -445,7 +445,7 @@ class UserRequestComponentTest : UsefulTestCase() {
     @Test
     fun `test COMPLETE approval action with empty content shows appropriate message`() = runTest(testDispatcher) {
         val requestContent = "Please approve this change"
-        val actionResult = ActionResult(content = "", approved = true)
+        val actionResult = UserRequestActionResult(content = "", approved = true)
         val actionResultJson = Json.encodeToString(actionResult)
         
         val flowAction = createTestFlowAction(
