@@ -21,7 +21,7 @@ import okhttp3.WebSocketListener
 import okhttp3.internal.platform.Platform
 import okhttp3.internal.ws.WebSocketReader
 import okio.ByteString
-import org.assertj.core.api.Assertions
+import org.junit.Assert.*
 import java.io.IOException
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedBlockingQueue
@@ -113,7 +113,7 @@ class WebSocketRecorder(private val name: String) : WebSocketListener() {
     private fun nextEvent(): Any {
         try {
             val event = events.poll(10, TimeUnit.SECONDS)
-                ?: throw AssertionError("Timed out waiting for event.")
+                ?: fail("Timed out waiting for event.")
             return event
         } catch (e: InterruptedException) {
             throw AssertionError(e)
@@ -122,73 +122,74 @@ class WebSocketRecorder(private val name: String) : WebSocketListener() {
 
     fun assertTextMessage(payload: String?) {
         val actual = nextEvent()
-        Assertions.assertThat(actual).isEqualTo(Message(payload))
+        assertEquals(Message(payload), actual)
     }
 
     fun assertBinaryMessage(payload: ByteString?) {
         val actual = nextEvent()
-        Assertions.assertThat(actual).isEqualTo(Message(payload))
+        assertEquals(Message(payload), actual)
     }
 
     fun assertPing(payload: ByteString) {
         val actual = nextEvent()
-        Assertions.assertThat(actual).isEqualTo(Ping(payload))
+        assertEquals(Ping(payload), actual)
     }
 
     fun assertPong(payload: ByteString) {
         val actual = nextEvent()
-        Assertions.assertThat(actual).isEqualTo(Pong(payload))
+        assertEquals(Pong(payload), actual)
     }
 
     fun assertClosing(code: Int, reason: String) {
         val actual = nextEvent()
-        Assertions.assertThat(actual).isEqualTo(Closing(code, reason))
+        assertEquals(Closing(code, reason), actual)
     }
 
     fun assertClosed(code: Int, reason: String) {
         val actual = nextEvent()
-        Assertions.assertThat(actual).isEqualTo(Closed(code, reason))
+        assertEquals(Closed(code, reason), actual)
     }
 
     fun assertExhausted() {
-        Assertions.assertThat(events).isEmpty()
+        assertTrue(events.isEmpty())
     }
 
     fun assertOpen(): WebSocket {
         val event = nextEvent()
         if (event !is Open) {
-            throw AssertionError("Expected Open but was $event")
+            fail("Expected Open but was $event")
         }
-        return event.webSocket
+        val openEvent = event as Open // Explicit cast
+        return openEvent.webSocket
     }
 
     fun assertFailure(t: Throwable?) {
         val event = nextEvent()
         if (event !is Failure) {
-            throw AssertionError("Expected Failure but was $event")
+            fail("Expected Failure but was $event")
         }
-        val failure = event
-        Assertions.assertThat(failure.response).isNull()
-        Assertions.assertThat(failure.t).isSameAs(t)
+        val failure = event as Failure // Explicit cast
+        assertNull(failure.response)
+        assertSame(t, failure.t)
     }
 
     fun assertFailure(cls: Class<out IOException?>?, vararg messages: String) {
         val event = nextEvent()
         if (event !is Failure) {
-            throw AssertionError("Expected Failure but was $event")
+            fail("Expected Failure but was $event")
         }
-        val failure = event
-        Assertions.assertThat(failure.response).isNull()
-        Assertions.assertThat(failure.t.javaClass).isEqualTo(cls)
-        if (messages.size > 0) {
-            Assertions.assertThat(messages).contains(failure.t.message)
+        val failure = event as Failure // Explicit cast
+        assertNull(failure.response)
+        assertEquals(cls, failure.t::class.java) // Use ::class.java
+        if (messages.isNotEmpty()) {
+            assertTrue("Error message '${failure.t.message}' not found in expected messages: ${messages.contentToString()}", messages.contains(failure.t.message))
         }
     }
 
     fun assertFailure() {
         val event = nextEvent()
         if (event !is Failure) {
-            throw AssertionError("Expected Failure but was $event")
+            fail("Expected Failure but was $event")
         }
     }
 
@@ -196,15 +197,16 @@ class WebSocketRecorder(private val name: String) : WebSocketListener() {
     fun assertFailure(code: Int, body: String?, cls: Class<out IOException?>?, message: String?) {
         val event = nextEvent()
         if (event !is Failure) {
-            throw AssertionError("Expected Failure but was $event")
+            fail("Expected Failure but was $event")
         }
-        val failure = event
-        Assertions.assertThat(failure.response!!.code).isEqualTo(code)
+        val failure = event as Failure // Explicit cast
+        assertNotNull("Response should not be null in this failure case", failure.response)
+        assertEquals(code, failure.response!!.code)
         if (body != null) {
-            Assertions.assertThat(failure.responseBody).isEqualTo(body)
+            assertEquals(body, failure.responseBody)
         }
-        Assertions.assertThat(failure.t.javaClass).isEqualTo(cls)
-        Assertions.assertThat(failure.t.message).isEqualTo(message)
+        assertEquals(cls, failure.t::class.java) // Use ::class.java
+        assertEquals(message, failure.t.message)
     }
 
     /** Expose this recorder as a frame callback and shim in "ping" events.  */
