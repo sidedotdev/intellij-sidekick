@@ -13,7 +13,9 @@ hints = """
 Refer to *.side.md files that describe how that area of the codebase should work.
 Always read files with that naming scheme that are located in an area that is
 relevant to the functionality you are working on. Only edit such files with express
-permission from the user, as they convey the user's intent.
+directives to do so from the user, otherwise tell the user to make those edits
+themselves, as they convey the user's intent which we do not want to inadvertently
+corrupt.
 
 Write or update unit tests for all major functionality. Feel free to make class
 attributes internal instead of private to make it easier to write these unit tests.
@@ -30,7 +32,7 @@ practice, and indicates a program error, but do this sparingly.
 Most tests dealing with coroutines use UnconfinedTestDispatcher, so advanceUntilIdle
 should not be used typically.
 
-Tests of components shoud typically extend BasePlatformTestCase, which is a subclass of a junit TestCase. So use junit assertions that are inherited from that. Don't use @Before but instead override setUp method. And don't use @Test but instead start test method names with the word "test".
+Tests of components should always extend SidekickBaseTestCase, which is a subclass of a junit TestCase. So use junit assertions that are inherited from that. Don't use @Before but instead override setUp method. And don't use @Test but instead start test method names with the word "test".
 
 To make child components testable, make them internal instead of private, so unit tests can access them.
 """

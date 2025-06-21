@@ -6,10 +6,10 @@ import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
+import com.github.sidedev.sidekick.testing.SidekickBaseTestCase
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.UsefulTestCase
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.fixtures.IdeaTestFixture
 import com.intellij.testFramework.fixtures.IdeaTestFixtureFactory
 import io.mockk.coEvery
@@ -20,11 +20,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TaskListPanelTest : UsefulTestCase() {
-    private lateinit var sidekickService: SidekickService
+class TaskListPanelTest : SidekickBaseTestCase() {
     private lateinit var taskListModel: TaskListModel
     private lateinit var taskListPanel: TaskListPanel
-    private lateinit var fixture: IdeaTestFixture
     private var taskSelectedCallbackInvoked = false
     private var newTaskCallbackInvoked = false
     
@@ -43,9 +41,7 @@ class TaskListPanelTest : UsefulTestCase() {
 
     override fun setUp() {
         super.setUp()
-        fixture = IdeaTestFixtureFactory.getFixtureFactory().createBareFixture()
-        fixture.setUp()
-        sidekickService = mockk()
+
         coEvery { sidekickService.getTasks("test-workspace") } returns ApiResponse.Success(emptyList())
 
         taskListModel = TaskListModel()
@@ -56,11 +52,6 @@ class TaskListPanelTest : UsefulTestCase() {
             onTaskSelected = { taskSelectedCallbackInvoked = true },
             onNewTask = { newTaskCallbackInvoked = true }
         )
-    }
-
-    override fun tearDown() {
-        fixture.tearDown()
-        super.tearDown()
     }
 
     fun testEmptyStateShowsNoTasksMessageAndButton() = runTest(testDispatcher) {

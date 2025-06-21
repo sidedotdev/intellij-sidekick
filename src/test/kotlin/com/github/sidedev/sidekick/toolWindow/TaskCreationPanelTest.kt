@@ -1,25 +1,20 @@
 package com.github.sidedev.sidekick.toolWindow
 
 import com.github.sidedev.sidekick.api.AgentType
-import com.github.sidedev.sidekick.api.SidekickService
 import com.github.sidedev.sidekick.api.Task
 import com.github.sidedev.sidekick.api.TaskStatus
 import com.github.sidedev.sidekick.api.response.ApiError
 import com.github.sidedev.sidekick.api.response.ApiResponse
-import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.github.sidedev.sidekick.testing.SidekickBaseTestCase
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Clock
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TaskCreationPanelTest : BasePlatformTestCase() {
-    private lateinit var sidekickService: SidekickService
+class TaskCreationPanelTest : SidekickBaseTestCase() {
     private lateinit var taskCreationPanel: TaskCreationPanel
     private var taskCreatedCallbackInvoked = false
 
@@ -31,7 +26,6 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
     override fun setUp() {
         super.setUp()
 
-        sidekickService = mockk()
         taskCreatedCallbackInvoked = false
 
         taskCreationPanel = TaskCreationPanel(
@@ -40,11 +34,6 @@ class TaskCreationPanelTest : BasePlatformTestCase() {
             onTaskCreated = { _ -> taskCreatedCallbackInvoked = true },
             dispatcher = testDispatcher,
         )
-    }
-
-    override fun tearDown() {
-        super.tearDown()
-        Dispatchers.resetMain()
     }
 
     fun testEmptyDescriptionShowsError() = runTest(testDispatcher) {
