@@ -31,9 +31,16 @@ repositories {
     }
 }
 
+// kotlinx-coroutines has to come from intellj platform, so have to exclude transitive dependencies
+// https://github.com/JetBrains/intellij-platform-gradle-plugin/issues/1573#issuecomment-2012084189
+configurations {
+    "implementation" {
+        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines")
+    }
+}
+
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
-    implementation(libs.kotlinxCoroutines)
     implementation(libs.kotlinxSerializationJson)
     implementation(libs.kotlinxDatetime)
     implementation(libs.ktorClientCore)
@@ -58,7 +65,6 @@ dependencies {
 
         // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file for plugin from JetBrains Marketplace.
         plugins(providers.gradleProperty("platformPlugins").map { it.split(',') })
-        instrumentationTools()
         pluginVerifier()
         zipSigner()
         testFramework(TestFrameworkType.Platform)
@@ -197,12 +203,4 @@ intellijPlatformTesting {
 
 tasks.withType<Test>().configureEach {
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
-}
-
-/**
- * Exclude all kotlinx coroutine modules from the runtime classpath to avoid conflicts with the IDE.
- * */
-configurations.runtimeClasspath {
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-    exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
 }
