@@ -30,11 +30,13 @@ practice, and indicates a program error, but do this sparingly.
 ### Testing
 
 Most tests dealing with coroutines use UnconfinedTestDispatcher, so advanceUntilIdle
-should not be used typically.
+should not be used typically. Components that make use of coroutines, eg for IO, should allow a coroutine dispatcher to be passed in their constructors (defaulted to an appropriate value), and tests should pass in their testDispatcher.
 
 Tests of components should always extend SidekickBaseTestCase, which is a subclass of a junit TestCase. So use junit assertions that are inherited from that. Don't use @Before but instead override setUp method. And don't use @Test but instead start test method names with the word "test".
 
 To make child components testable, make them internal instead of private, so unit tests can access them.
+
+There is some slight flakiness associated with failures with VFS and thus indexing files. The exceptions this results in include "Index data initialization failed" and "VFS can't be initialized", or similar VFS issues. If you see such errors, those are typically transient and no attempt should be made to fix these, just re-run the tests. However, if re-running the tests result in the same failures, ask the user for help.
 """
 
 [[test_commands]]

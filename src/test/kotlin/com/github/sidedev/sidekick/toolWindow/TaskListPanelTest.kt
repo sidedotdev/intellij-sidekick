@@ -50,7 +50,8 @@ class TaskListPanelTest : SidekickBaseTestCase() {
             taskListModel = taskListModel,
             sidekickService = sidekickService,
             onTaskSelected = { taskSelectedCallbackInvoked = true },
-            onNewTask = { newTaskCallbackInvoked = true }
+            onNewTask = { newTaskCallbackInvoked = true },
+            dispatcher = testDispatcher,
         )
     }
 

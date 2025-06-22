@@ -24,7 +24,7 @@ class TaskListPanel(
     private val sidekickService: SidekickService,
     private val onTaskSelected: (Task) -> Unit,
     private val onNewTask: () -> Unit,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JBPanel<TaskListPanel>(BorderLayout()) {
 
     internal val statusLabel = JBLabel("", SwingConstants.CENTER).apply {
