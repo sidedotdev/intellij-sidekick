@@ -15,8 +15,8 @@ class FlowActionComponent(
     internal var flowAction: FlowAction
 ) : JBPanel<FlowActionComponent>(BorderLayout()), IUpdatableFlowActionPanel {
 
-    private var displayedChild: JComponent? = null
-    private lateinit var defaultViewPanel: JBPanel<*>
+    internal var displayedChild: JComponent? = null
+    internal lateinit var defaultViewPanel: JBPanel<*>
 
     // Properties to hold the labels for updating
     internal lateinit var actionTypeLabel: JBLabel
