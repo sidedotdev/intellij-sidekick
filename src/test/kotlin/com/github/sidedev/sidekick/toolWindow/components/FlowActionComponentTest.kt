@@ -1,12 +1,11 @@
 package com.github.sidedev.sidekick.toolWindow.components
 
-import com.github.sidedev.sidekick.api.SidekickService // Assuming this is the correct import as used in FlowActionComponent
-import com.github.sidedev.sidekick.models.ActionStatus // IMPORTANT: Assuming 'ActionStatus' enum exists in this package and has a 'COMPLETED' member.
+import com.github.sidedev.sidekick.api.SidekickService
+import com.github.sidedev.sidekick.models.ActionStatus
 import com.github.sidedev.sidekick.models.FlowAction
 import com.intellij.testFramework.UsefulTestCase
 import com.intellij.ui.components.JBPanel
 import kotlinx.datetime.Instant
-import kotlinx.serialization.json.JsonNull // Used for actionParams if needed, though emptyMap() is often sufficient
 import java.util.UUID
 import javax.swing.JComponent
 
@@ -18,9 +17,6 @@ class FlowActionComponentTest : UsefulTestCase() {
     private lateinit var flowActionOtherTypeUpdated: FlowAction
     private lateinit var flowActionUserRequestUpdated: FlowAction
 
-    // Placeholder for actual ActionStatus.COMPLETED.
-    // This might need adjustment based on the actual ActionStatus enum definition.
-    // If ActionStatus.COMPLETED does not exist, these tests will fail during setup.
     private val completedActionStatus = ActionStatus.COMPLETE
 
     override fun setUp() {
@@ -144,7 +140,7 @@ class FlowActionComponentTest : UsefulTestCase() {
         val initialUserRequestComponentInstance = component.displayedChild
         assertTrue("Initial child should be UserRequestComponent", initialUserRequestComponentInstance is UserRequestComponent)
 
-        component.update(flowActionUserRequestUpdated) // Update with new FlowAction of user_request type
+        component.update(flowActionUserRequestUpdated)
 
         val updatedUserRequestComponentInstance = component.displayedChild
         assertNotNull("Displayed child should not be null after update", updatedUserRequestComponentInstance)
@@ -158,18 +154,16 @@ class FlowActionComponentTest : UsefulTestCase() {
 
     fun testUpdateDefaultViewData() {
         val component = FlowActionComponent(flowActionOtherType)
-        val initialDefaultViewPanelInstance = component.defaultViewPanel // Default view panel is reused
+        val initialDefaultViewPanelInstance = component.defaultViewPanel
 
-        // Verify initial labels
         assertEquals("Initial action type label mismatch", "other_type", component.actionTypeLabel.text)
         assertEquals("Initial action result label mismatch", "Result for other type", component.actionResultLabel.text)
 
-        component.update(flowActionOtherTypeUpdated) // Update with new data for the same default type
+        component.update(flowActionOtherTypeUpdated)
 
         assertSame("DefaultViewPanel instance should be reused", initialDefaultViewPanelInstance, component.defaultViewPanel)
         assertSame("Displayed child should be the reused defaultViewPanel", component.defaultViewPanel, component.displayedChild)
 
-        // Verify updated labels
         assertEquals("Action type label should remain the same", "other_type", component.actionTypeLabel.text)
         assertEquals("Action result label should be updated", "UPDATED Result for other type", component.actionResultLabel.text)
     }

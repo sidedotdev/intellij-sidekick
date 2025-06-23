@@ -331,11 +331,7 @@ class TaskViewPanel(
                     section
                 }
             }
-            // Use processAction instead of addFlowAction
             section.processAction(flowAction, subflow)
-            // Keep revalidate/repaint for now, although processAction handles it for new components
-            section.revalidate()
-            section.repaint()
 
             if (shouldAutoScroll) {
                 SwingUtilities.invokeLater {

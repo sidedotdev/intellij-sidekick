@@ -2,7 +2,8 @@ package com.github.sidedev.sidekick.toolWindow.components
 
 import com.github.sidedev.sidekick.api.Subflow
 import com.github.sidedev.sidekick.models.FlowAction
-import com.github.sidedev.sidekick.models.ActionStatus
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.util.ui.JBUI
 import javax.swing.BoxLayout
 import javax.swing.JComponent
@@ -18,6 +19,7 @@ class TaskExecutionSection(
     },
 ) : AccordionSection(title = name, content = initialContent, initiallyExpanded = false) {
 
+    private val logger: Logger = logger<TaskExecutionSection>()
     internal data class CodeContextSubflowState(var subflow: Subflow)
 
     // Map to store SubflowSummaryComponent instances by Subflow ID for "code_context" subflows
@@ -58,39 +60,15 @@ class TaskExecutionSection(
             // Individual FlowActionComponents are not created for "code_context" subflows
         } else {
             val existingComponent = flowActionComponents[flowAction.id]
-            val isNewActionGenerateType = flowAction.actionType.startsWith("generate.")
 
             if (existingComponent != null) {
-                // Both FlowActionComponent and GenerateFlowActionComponent are JPanels (JComponents).
-                val existingComponentAsJComponent = existingComponent as JComponent
-                val isExistingComponentGenerateType = existingComponent is GenerateFlowActionComponent
-
-                if (isNewActionGenerateType == isExistingComponentGenerateType) {
-                    // Type matches, just update the existing component
-                    existingComponent.update(flowAction)
-                    // The component's update method should handle its own repaint if necessary.
-                    // Container revalidation/repaint might be needed if component size changes significantly,
-                    // but this is handled by add/remove operations. For in-place updates,
-                    // we rely on the component or assume minor visual changes.
-                } else {
-                    // Type mismatch, remove old and add new
-                    content.remove(existingComponentAsJComponent)
-                    flowActionComponents.remove(flowAction.id) // Remove from map
-
-                    val newComponentToAdd: IUpdatableFlowActionPanel = if (isNewActionGenerateType) {
-                        GenerateFlowActionComponent(flowAction)
-                    } else {
-                        FlowActionComponent(flowAction)
-                    }
-                    flowActionComponents[flowAction.id] = newComponentToAdd
-                    // Ensure the new component (which is a JPanel) is added as a JComponent.
-                    content.add(newComponentToAdd as JComponent)
-                    content.revalidate()
-                    content.repaint()
-                }
+                logger.info("updating existing component for flow action ${ flowAction.id }")
+                existingComponent.update(flowAction)
             } else {
+                logger.info("Adding new component for flow action ${ flowAction.id }: ${flowAction.actionType}")
                 // No existing component, create and add a new one
-                val newComponentToAdd: IUpdatableFlowActionPanel = if (isNewActionGenerateType) {
+                val isGenerateActionType = flowAction.actionType.startsWith("generate.")
+                val newComponentToAdd: IUpdatableFlowActionPanel = if (isGenerateActionType) {
                     GenerateFlowActionComponent(flowAction)
                 } else {
                     FlowActionComponent(flowAction)
