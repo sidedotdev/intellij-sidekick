@@ -5,3 +5,4 @@
 .kotlin
 *.hprof
 build
+.DS_Store
